@@ -34,8 +34,7 @@
   "homepage": "https://github.com/tradecrush/next-route-guard",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tradecrush/next-route-guard",
-    "directory": "packages/next-route-guard"
+    "url": "https://github.com/tradecrush/next-route-guard"
   },
   "dependencies": {
     "chokidar": "^3.5.3",
