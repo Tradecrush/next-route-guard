@@ -1,6 +1,6 @@
-# Route Auth Tests
+# Next Route Guard Tests
 
-This directory contains tests for the `@tradecrush/route-auth` package, specifically for the route generation functionality.
+This directory contains tests for the `@tradecrush/next-route-guard` package, specifically for the route generation and matching functionality.
 
 ## Test Files
 
@@ -14,7 +14,7 @@ This directory contains tests for the `@tradecrush/route-auth` package, specific
 You can run the tests using npm:
 
 ```bash
-# Run all route-auth tests
+# Run all next-route-guard tests
 npm run test:routes
 
 # Run only basic route tests
@@ -29,7 +29,7 @@ npm run test:matching
 
 ## What's Being Tested
 
-These tests cover the main functionality of the route-auth package, including:
+These tests cover the main functionality of the next-route-guard package, including:
 
 ### Basic Route Patterns
 

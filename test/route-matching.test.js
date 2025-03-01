@@ -4,8 +4,8 @@ const assert = require('assert');
 const { NextResponse } = require('next/server');
 
 /**
- * Test file for route-auth URL matching logic
- * Tests that the route-auth implementation correctly handles real URLs 
+ * Test file for next-route-guard URL matching logic
+ * Tests that the next-route-guard implementation correctly handles real URLs 
  * without special Next.js syntax markers, including dynamic segments
  */
 
@@ -113,9 +113,9 @@ async function testRouteProtection(pathname, routeMap) {
   return response && response.status === 307 && response.headers.get('location').includes('/login');
 }
 
-// Run the matching tests using the actual route-auth implementation
+// Run the matching tests using the actual next-route-guard implementation
 async function runMatchingTests() {
-  console.log('🧪 Running route matching tests on route-auth implementation...');
+  console.log('🧪 Running route matching tests on next-route-guard implementation...');
   console.log('Testing URL matching with dynamic routes, catch-all routes, and more');
   
   let passCount = 0;
@@ -152,7 +152,7 @@ async function runMatchingTests() {
     process.exit(1);
   } else {
     console.log('\n✅ All route matching tests passed!');
-    console.log('The route-auth middleware correctly handles URL transformation from Next.js route patterns.');
+    console.log('The next-route-guard middleware correctly handles URL transformation from Next.js route patterns.');
   }
 }
 

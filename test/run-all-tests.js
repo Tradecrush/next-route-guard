@@ -2,10 +2,10 @@
 const { execSync } = require('child_process');
 const path = require('path');
 
-console.log('🧪 Running all route-auth tests...\n');
+console.log('🧪 Running all next-route-guard tests...\n');
 
 // Build the project before running tests
-console.log('Building route-auth package...');
+console.log('Building next-route-guard package...');
 try {
   execSync('npm run build', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
 } catch (error) {
@@ -31,7 +31,7 @@ try {
 }
 
 console.log('\n=== URL matching tests ===');
-console.log('Testing that route-auth correctly handles real-world URLs with dynamic segments');
+console.log('Testing that next-route-guard correctly handles real-world URLs with dynamic segments');
 try {
   execSync('node test/route-matching.test.js', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
 } catch (error) {

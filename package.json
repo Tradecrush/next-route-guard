@@ -1,6 +1,7 @@
 {
   "name": "@tradecrush/next-route-guard",
   "version": "0.1.0",
+  "private": false,
   "description": "Convention-based route authentication middleware for Next.js applications",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -33,7 +34,8 @@
   "homepage": "https://github.com/tradecrush/next-route-guard",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tradecrush/next-route-guard"
+    "url": "https://github.com/tradecrush/next-route-guard",
+    "directory": "packages/next-route-guard"
   },
   "dependencies": {
     "chokidar": "^3.5.3",
@@ -55,7 +57,8 @@
   },
   "files": [
     "dist/**",
-    "scripts/**"
+    "scripts/**",
+    "README.md"
   ],
   "bin": {
     "next-route-guard-generate": "scripts/generate-routes.js",

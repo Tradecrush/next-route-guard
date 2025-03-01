@@ -4,7 +4,7 @@ const { execSync } = require('child_process');
 const assert = require('assert');
 
 /**
- * Advanced test file for the route-auth generate-routes.js script
+ * Advanced test file for the next-route-guard generate-routes.js script
  * Tests complex Next.js route patterns including:
  * - Parallel routes
  * - Intercepted routes
