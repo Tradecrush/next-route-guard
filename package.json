@@ -1,0 +1,62 @@
+{
+  "name": "@tradecrush/next-route-guard",
+  "version": "0.1.0",
+  "description": "Convention-based route authentication middleware for Next.js applications",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "eslint src --fix",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "test:routes": "node test/run-all-tests.js",
+    "test:generate": "node test/generate-routes.test.js",
+    "test:advanced": "node test/advanced-routes.test.js",
+    "test:matching": "node test/route-matching.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "next.js",
+    "authentication",
+    "middleware",
+    "route",
+    "guard",
+    "protection",
+    "app-router",
+    "directory-based",
+    "convention"
+  ],
+  "author": "TradeCrush",
+  "license": "MIT",
+  "homepage": "https://github.com/tradecrush/next-route-guard",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tradecrush/next-route-guard"
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "debug": "^4.3.4"
+  },
+  "devDependencies": {
+    "@types/debug": "^4.1.12",
+    "@types/node": "^20",
+    "eslint": "^9.19.0",
+    "next": "^15.1.6",
+    "tsup": "^8.0.2",
+    "typescript": "^5.7.3",
+    "vitest": "^1.4.0"
+  },
+  "peerDependencies": {
+    "next": ">=15.0.0"
+  },
+  "files": [
+    "dist/**",
+    "scripts/**"
+  ],
+  "bin": {
+    "next-route-guard-generate": "scripts/generate-routes.js",
+    "next-route-guard-watch": "./scripts/watch-routes.js"
+  }
+}
