@@ -28,7 +28,7 @@
     "directory-based",
     "convention"
   ],
-  "author": "TradeCrush",
+  "author": "Tradecrush",
   "license": "MIT",
   "homepage": "https://github.com/tradecrush/next-route-guard",
   "repository": {
@@ -40,6 +40,8 @@
     "debug": "^4.3.4"
   },
   "devDependencies": {
+    "@tradecrush/eslint-config": "^0.1.0",
+    "@tradecrush/typescript-config": "^0.1.0",
     "@types/debug": "^4.1.12",
     "@types/node": "^20",
     "eslint": "^9.19.0",
