@@ -38,8 +38,24 @@ function cleanTestDirectories() {
   }
 }
 
-afterAll(() => {
+// Clean up before each test
+beforeEach(() => {
   cleanTestDirectories();
+});
+
+// Final cleanup
+afterAll(() => {
+  const testDirs = [path.resolve(__dirname, 'test-app'), path.resolve(__dirname, 'test-app-advanced')];
+  
+  for (const dir of testDirs) {
+    try {
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    } catch (error) {
+      console.error(`Error removing directory ${dir}:`, error);
+    }
+  }
 });
 
 // Create a mock NextRequest class for testing

@@ -81,13 +81,17 @@ function runGenerateRoutes() {
 }
 
 describe('Basic route testing', () => {
-  beforeAll(() => {
+  beforeEach(() => {
+    // Clean up and create test app structure before each test
     cleanTestDirectory();
     createTestAppStructure();
   });
 
   afterAll(() => {
-    cleanTestDirectory();
+    // Remove test directory completely when done
+    if (fs.existsSync(TEST_APP_DIR)) {
+      fs.rmSync(TEST_APP_DIR, { recursive: true, force: true });
+    }
   });
 
   test('should generate the correct basic route map', () => {

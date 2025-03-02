@@ -10,8 +10,9 @@ The unit tests are organized into several categories:
 2. **Advanced Routes Tests** - Tests complex routing patterns including nested route groups and protection inheritance
 3. **Generate Routes Tests** - Tests the route map generation script with different app directory structures
 4. **Trie Matching Tests** - Tests the trie-based route matching algorithm with complex path patterns
-5. **Complex Middleware Tests** - Tests the middleware behavior with different authentication states and route configurations
-6. **Performance Tests** - Benchmarks the performance of the route matching algorithm
+5. **Custom Group Names Tests** - Tests user-defined group names and nested group behavior
+6. **Complex Middleware Tests** - Tests the middleware behavior with different authentication states and route configurations
+7. **Performance Tests** - Benchmarks the performance of the route matching algorithm
 
 ## Running Unit Tests
 
@@ -37,6 +38,20 @@ Many tests create temporary app directory structures to test the route generatio
 - Nested route groups with different protection levels
 - Parallel routes (`@slot`)
 - Intercepted routes (`(.)`)
+
+## Custom Group Names Tests
+
+The `custom-group-names.test.js` file contains tests specifically for the custom group names feature:
+
+- Using custom route group names like `(guest)`, `(auth)`, `(admin)` instead of the default `(public)` and `(protected)`
+- Processing comma-separated lists of group patterns via CLI options
+- Handling nested groups with different protection levels
+- Ensuring proper precedence where innermost (most specific) groups override parent groups
+
+These tests verify:
+1. Routes under a more specific group inherit the protection status from the innermost group
+2. Routes like `/docs/admin` can be protected even when nested under public parent paths
+3. Custom group names work with various naming patterns, including special characters and unusual names
 
 ## Adding New Unit Tests
 

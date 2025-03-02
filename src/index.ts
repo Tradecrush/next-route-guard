@@ -172,11 +172,16 @@ export function generateRouteMap(
           let isProtected = true;
 
           // Check route groups to determine protection status
-          for (const group of groups) {
-            if (publicPatterns.includes(group)) {
+          // Process groups in reverse order to prioritize the innermost (most specific) group
+          // This behavior was enhanced in v0.2.2 to allow nested groups to override parent groups
+          // For example, (public)/docs/(protected)/admin would make /docs/admin protected
+          // despite being in a public parent group
+          for (let i = groups.length - 1; i >= 0; i--) {
+            const group = groups[i];
+            if (group && publicPatterns.includes(group)) {
               isProtected = false;
               break;
-            } else if (protectedPatterns.includes(group)) {
+            } else if (group && protectedPatterns.includes(group)) {
               isProtected = true;
               break;
             }

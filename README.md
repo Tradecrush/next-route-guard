@@ -1,6 +1,8 @@
 # @tradecrush/next-route-guard
 
-> 🚀 **NEW v0.2.1**: Now with trie-based route matching (67× faster), improved optional catch-all route handling, and complete Next.js version compatibility!
+> 🚀 **NEW v0.2.2**: Custom route groups, nested protection overrides, and improved innermost group precedence!
+>
+> ⚡ **OPTIMIZED**: Trie-based route matching (67× faster), improved optional catch-all route handling, and complete Next.js version compatibility!
 
 A convention-based route authentication middleware for Next.js applications with App Router (Next.js 13.4.0 and up), fully tested and compatible with all major Next.js versions.
 
@@ -335,6 +337,38 @@ app/
 └── (secure)/          # More protected routes
     └── admin/
 ```
+
+### Nested Group Behavior
+
+When you have nested route groups with different protection levels, the **innermost (most specific) group takes precedence**. This allows for fine-grained control over route protection:
+
+```
+app/
+├── (public)/                  # Public routes group
+│   ├── help/
+│   │   └── page.tsx           # Public route
+│   └── docs/  
+│       ├── page.tsx           # Public route  
+│       └── (protected)/       # Nested protected group
+│           └── admin/
+│               └── page.tsx   # PROTECTED route (/docs/admin)
+├── (protected)/               # Protected routes group
+│   ├── dashboard/
+│   │   └── page.tsx           # Protected route
+│   └── settings/
+│       ├── page.tsx           # Protected route
+│       └── (public)/          # Nested public group
+│           └── faq/
+│               └── page.tsx   # PUBLIC route (/settings/faq)
+```
+
+In this example:
+- `/help` and `/docs` are public (from the outer `(public)` group)
+- `/docs/admin` is protected (from the inner `(protected)` group)
+- `/dashboard` and `/settings` are protected (from the outer `(protected)` group)
+- `/settings/faq` is public (from the inner `(public)` group)
+
+This hierarchical approach gives you precise control over which routes require authentication.
 
 ### Route Map Location
 

@@ -119,13 +119,17 @@ function runGenerateRoutes() {
 // runAdvancedTests function to better match the actual implementation
 
 describe('Advanced route testing', () => {
-  beforeAll(() => {
+  beforeEach(() => {
+    // Clean up and create fresh test app structure before each test
     cleanTestDirectory();
     createAdvancedTestAppStructure();
   });
 
   afterAll(() => {
-    cleanTestDirectory();
+    // Remove test directory completely when done
+    if (fs.existsSync(TEST_APP_DIR)) {
+      fs.rmSync(TEST_APP_DIR, { recursive: true, force: true });
+    }
   });
 
   test('should generate correct route map for complex patterns', () => {
@@ -139,7 +143,7 @@ describe('Advanced route testing', () => {
       '/account/login',
       '/account/register',
       '/help',
-      '/help/admin' // This was showing as public in the output
+      // '/help/admin' is now protected due to innermost group prioritization
     ];
 
     const expectedProtectedRoutes = [
@@ -152,10 +156,10 @@ describe('Advanced route testing', () => {
       '/account/settings/[section]',
       '/docs',
       '/docs/[[...path]]',
-      '/docs/public-docs', // These are actually protected in the output
-      '/docs/public-docs/[...path]', // These are actually protected in the output
+      // '/docs/public-docs' and '/docs/public-docs/[...path]' are now public due to innermost group prioritization
       '/react-routes/jsx-route',
-      '/react-routes/tsx-route'
+      '/react-routes/tsx-route',
+      '/help/admin'
     ];
 
     // Verify all expected routes are present
@@ -176,7 +180,9 @@ describe('Advanced route testing', () => {
 
   test('should handle route protection inheritance', () => {
     const routeMap = runGenerateRoutes();
-    expect(routeMap.public).toContain('/help/admin');
+    // After our fix to prioritize innermost groups, `/help/admin` should now be in protected routes
+    // as (protected) group is more specific than (public)
+    expect(routeMap.protected).toContain('/help/admin');
   });
 
   test('should detect different file extensions', () => {

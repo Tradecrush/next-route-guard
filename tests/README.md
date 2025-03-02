@@ -8,6 +8,27 @@ This directory contains the comprehensive test suite for the Next Route Guard pa
 - `tests/compatibility/`: End-to-end tests that verify integration with different Next.js versions
 - `tests/run-all-tests.js`: Script to run both unit and compatibility tests sequentially
 
+## Test Overview
+
+The test suite covers all aspects of the package:
+
+### Unit Tests
+- **Route Matching**: Basic pattern matching and URL handling
+- **Advanced Routes**: Complex Next.js route patterns and directory structures
+- **Custom Group Names**: User-defined group patterns and nested group precedence
+- **Trie Matching**: Performance and correctness of the trie-based route matcher
+- **Generate Routes**: Creation of route maps from directory structures
+- **Middleware**: Authentication checks and route protection behavior
+- **Performance**: Benchmarks comparing different implementation approaches
+
+### Compatibility Tests
+- **Next.js Versions**: Tests with Next.js 13.4.0, 14.0.0, and 15.0.0
+- **Edge Runtime**: Verification that middleware works in Edge runtime
+- **Build Process**: Integration with the Next.js build process
+- **Real App Testing**: End-to-end testing with actual HTTP requests
+
+See each directory's README for more detailed information about each test category.
+
 ## Running Tests
 
 ```bash
@@ -32,6 +53,17 @@ The test suite is run in CI for every pull request and push to main branches:
 - Compatibility tests are run for Next.js 13.4.0, 14.0.0, and 15.0.0
 
 This ensures the package remains compatible with all supported environments.
+
+## Test Categories
+
+The unit tests cover several important aspects of the package:
+
+1. **Route Matching**: Basic tests for URL matching against route maps
+2. **Trie Matching**: Advanced tests for the trie-based route matching algorithm
+3. **Advanced Routes**: Tests for complex routing patterns
+4. **Custom Group Names**: Tests for user-defined group names and nested group behavior
+5. **Complex Middleware**: Tests for middleware chaining and advanced configurations
+6. **Performance**: Benchmarks for the trie-based implementation
 
 ## Adding New Tests
 
