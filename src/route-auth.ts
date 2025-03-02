@@ -290,10 +290,13 @@ function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean
     let matched = false;
     
     // 1. Try exact match first
-    if (currentNode.children.has(segment)) {
-      currentNode = currentNode.children.get(segment)!;
-      matched = true;
-      matchIndex++;
+    if (segment && currentNode.children.has(segment)) {
+      const nextNode = currentNode.children.get(segment);
+      if (nextNode) {
+        currentNode = nextNode;
+        matched = true;
+        matchIndex++;
+      }
     }
     // 2. Try dynamic segment
     else if (currentNode.dynamicChild) {
