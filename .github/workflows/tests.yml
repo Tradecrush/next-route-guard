@@ -17,22 +17,18 @@ jobs:
       fail-fast: false  # Continue with other jobs if one fails
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
     
-    - name: Setup Node.js ${{ matrix.node }}
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node }}
-        
-    # Use simpler unique cache keys to avoid conflicts
-    - name: Cache node modules
-      uses: actions/cache@v3
-      id: npm-cache
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-npm-${{ matrix.node }}-${{ hashFiles('**/package-lock.json') }}-${{ github.run_id }}
-        restore-keys: |
-          ${{ runner.os }}-npm-${{ matrix.node }}-
+        cache: 'npm'
+        cache-dependency-path: package-lock.json
+      env:
+        # Set a unique cache path for each Node version
+        npm_config_cache: ~/.npm-cache-${{ matrix.node }}
     
     - name: Install dependencies
       run: npm ci
