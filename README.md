@@ -148,7 +148,7 @@ These benchmarks were run on Node.js v22.14.0 on a MacBook Pro (M3 Max), with 10
 
 #### Performance Comparison with Previous Version
 
-Comparing to the previous linear search implementation (v0.1.3):
+Comparing to the previous linear search implementation (v0.1.4):
 
 | Implementation | Avg time/request | Speedup |
 |----------------|------------------|---------|
