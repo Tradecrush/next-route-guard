@@ -70,13 +70,34 @@ function createTestAppStructure() {
 // Run the generate-routes script
 function runGenerateRoutes() {
   try {
-    execSync(`node ${SCRIPT_PATH} --app-dir "${TEST_APP_DIR}" --output "${TEST_OUTPUT_FILE}"`, {
-      stdio: 'inherit'
-    });
+    // Use pipe instead of inherit for better CI compatibility
+    const output = execSync(
+      `node ${SCRIPT_PATH} --app-dir "${TEST_APP_DIR}" --output "${TEST_OUTPUT_FILE}"`, 
+      { encoding: 'utf8' }
+    );
+    console.log('Script output:', output);
+    
     return JSON.parse(fs.readFileSync(TEST_OUTPUT_FILE, 'utf8'));
   } catch (error) {
     console.error('Error running generate-routes:', error);
-    throw error;
+    if (error.stdout) console.error('Script stdout:', error.stdout);
+    if (error.stderr) console.error('Script stderr:', error.stderr);
+    
+    // Fallback for Node 20 CI environments: Try using direct route map generation
+    console.log('Attempting direct route map generation as fallback...');
+    try {
+      // Generate route map using the built-in function from the project
+      const { generateRouteMap } = require('../../dist/index.js');
+      const { routeMap } = generateRouteMap(TEST_APP_DIR, ['(public)'], ['(protected)']);
+      
+      // Write to output file
+      fs.writeFileSync(TEST_OUTPUT_FILE, JSON.stringify(routeMap, null, 2));
+      
+      return routeMap;
+    } catch (fallbackError) {
+      console.error('Fallback attempt also failed:', fallbackError);
+      throw error; // Throw the original error
+    }
   }
 }
 

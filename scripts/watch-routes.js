@@ -15,7 +15,23 @@ const path = require('path');
 
 const chokidar = require('chokidar');
 
-const { generateRouteMap } = require('../dist');
+// NodeJS 20 compatibility: Use explicit path to index.js
+let generateRouteMap;
+try {
+  // Try importing from dist with explicit file path
+  const lib = require('../dist/index.js');
+  generateRouteMap = lib.generateRouteMap;
+} catch (error) {
+  console.log('Could not load from dist/index.js, falling back to dist directory...');
+  try {
+    // Try without explicit .js extension
+    const lib = require('../dist');
+    generateRouteMap = lib.generateRouteMap;
+  } catch (distError) {
+    console.error('Failed to load generateRouteMap from dist directory:', distError);
+    process.exit(1);
+  }
+}
 
 // Parse command line arguments
 const args = process.argv.slice(2);
