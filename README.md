@@ -42,17 +42,17 @@ pnpm add @tradecrush/next-route-guard
 
 ```
 app/
-├── (public)/             # Public routes
+├── (public)/             # Public routes (no authentication required)
 │   ├── login/
 │   │   └── page.tsx
 │   └── about/
 │       └── page.tsx
-├── (protected)/          # Protected routes
+├── (protected)/          # Protected routes (authentication required)
 │   ├── dashboard/
 │   │   └── page.tsx
 │   └── settings/
 │       └── page.tsx
-└── layout.tsx
+└── layout.tsx            # Root layout (applies to all routes)
 ```
 
 2. **Add the route map generation to your build script** in package.json:
@@ -78,8 +78,13 @@ export default createRouteAuthMiddleware({
   routeMap,
   isAuthenticated: async (request) => {
     // Replace with your actual authentication logic
+    // This is just an example using cookies
     const token = request.cookies.get('auth-token')?.value;
     return !!token;
+    
+    // Or using JWT from Authorization header
+    // const authHeader = request.headers.get('Authorization');
+    // return authHeader?.startsWith('Bearer ') || false;
   },
   onUnauthenticated: (request) => {
     // Redirect to login with return URL
@@ -114,10 +119,58 @@ During your build process, the `next-route-guard-generate` command:
 ### 2. Runtime: Middleware Protection
 
 The middleware:
-- Uses the generated route map to check if a requested path is protected
+- Uses the generated route map to build an optimized route trie data structure
+- Efficiently matches request paths against the trie to determine protection status
 - Checks authentication status for protected routes
 - Redirects unauthenticated users to login (or your custom logic)
 - Allows direct access to public routes
+
+### Route Trie Optimization
+
+Next Route Guard uses a specialized trie (prefix tree) data structure for route matching that significantly improves performance and maintainability:
+
+- **O(k) Matching Complexity**: Routes are matched in time proportional to the path depth (k), not the total number of routes (n)
+- **Space-Efficient**: Shared path prefixes are stored once in the tree structure
+- **Advanced Route Pattern Support**: Optimized handling of all Next.js route patterns:
+  - Dynamic segments: `/users/[id]` 
+  - Catch-all routes: `/docs/[...slug]`
+  - Optional catch-all: `/docs/[[...slug]]`
+  - Complex paths with rest segments: `/docs/[...slug]/edit`
+  - Multiple dynamic segments: `/products/[category]/[id]/details`
+  - Mixed dynamic and catch-all: `/articles/[section]/[...tags]/share`
+- **One-time Initialization**: The trie is built once when middleware initializes, then reused for all requests
+- **Stable Performance**: Lookup time remains consistent even as your application grows to hundreds or thousands of routes
+- **Protection Inheritance**: Route protection statuses naturally flow through the tree structure
+
+#### How the Route Trie Works
+
+The route trie transforms the flat route lists into a tree structure that matches the URL hierarchy:
+
+```
+/ (root)
+├── about (public)
+├── dashboard (protected)
+│   └── @stats (protected) - parallel route
+├── products 
+│   ├── [id] (dynamic - public)
+│   │   └── preview (public)
+│   └── [category] (dynamic)
+│       └── [id] (dynamic - protected)
+└── docs (protected)
+    └── [...slug] (catch-all)
+        ├── edit (protected)
+        └── preview (public)
+```
+
+When a request arrives:
+1. The URL is split into segments
+2. The trie is traversed segment-by-segment, matching:
+   - Exact matches first (highest priority)
+   - Dynamic parameters next
+   - Catch-all segments as needed
+3. Protection status is determined from the final matched node or inherited from parent nodes
+
+This approach provides orders of magnitude better performance than a linear search through route lists, especially for applications with many routes or complex routing patterns.
 
 ## Route Protection Rules
 
@@ -309,33 +362,6 @@ const withLogging = (next) => {
   };
 };
 
-// Rate limiting middleware
-const withRateLimit = (next) => {
-  const ipMap = new Map();
-  
-  return (request) => {
-    const ip = request.ip || 'unknown';
-    const now = Date.now();
-    const record = ipMap.get(ip) || { count: 0, timestamp: now };
-    
-    // Reset count if more than a minute has passed
-    if (now - record.timestamp > 60000) {
-      record.count = 0;
-      record.timestamp = now;
-    }
-    
-    record.count++;
-    ipMap.set(ip, record);
-    
-    // Rate limit: 60 requests per minute
-    if (record.count > 60) {
-      return new NextResponse('Too Many Requests', { status: 429 });
-    }
-    
-    return next(request);
-  };
-};
-
 // Auth middleware factory
 const withAuth = createRouteAuthMiddleware({
   // Your auth options...
@@ -343,7 +369,7 @@ const withAuth = createRouteAuthMiddleware({
 
 // Export the chained middleware
 export default function middleware(request) {
-  return chain([withLogging, withRateLimit, withAuth])(request);
+  return chain([withLogging, withAuth])(request);
 }
 ```
 

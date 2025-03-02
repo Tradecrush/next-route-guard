@@ -39,4 +39,22 @@ try {
   process.exit(1);
 }
 
+console.log('\n=== Trie-based route matching tests ===');
+console.log('Testing the optimized trie-based matching implementation with complex route patterns');
+try {
+  execSync('node test/trie-matching.test.js', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+} catch (error) {
+  console.error('Trie-based matching tests failed:', error);
+  process.exit(1);
+}
+
+console.log('\n=== Complex middleware integration tests ===');
+console.log('Testing realistic middleware scenarios with complex route patterns and authentication states');
+try {
+  execSync('node test/complex-middleware-test.js', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+} catch (error) {
+  console.error('Complex middleware integration tests failed:', error);
+  process.exit(1);
+}
+
 console.log('\n✅ All tests completed successfully!');
