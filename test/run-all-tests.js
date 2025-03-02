@@ -2,7 +2,7 @@
 const { execSync } = require('child_process');
 const path = require('path');
 
-console.log('🧪 Running all next-route-guard tests...\n');
+console.log('🧪 Running all next-route-guard tests with Vitest 3.0.7...\n');
 
 // Build the project before running tests
 console.log('Building next-route-guard package...');
@@ -13,48 +13,12 @@ try {
   process.exit(1);
 }
 
-// Run each test file
-console.log('\n=== Basic route tests ===');
+// Run all tests using vitest
+console.log('\n=== Running all tests with Vitest ===');
 try {
-  execSync('node test/generate-routes.test.js', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+  execSync('npm test', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+  console.log('\n✅ All tests completed successfully!');
 } catch (error) {
-  console.error('Basic route tests failed:', error);
+  console.error('Tests failed:', error);
   process.exit(1);
 }
-
-console.log('\n=== Advanced route tests ===');
-try {
-  execSync('node test/advanced-routes.test.js', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
-} catch (error) {
-  console.error('Advanced route tests failed:', error);
-  process.exit(1);
-}
-
-console.log('\n=== URL matching tests ===');
-console.log('Testing that next-route-guard correctly handles real-world URLs with dynamic segments');
-try {
-  execSync('node test/route-matching.test.js', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
-} catch (error) {
-  console.error('URL matching tests failed:', error);
-  process.exit(1);
-}
-
-console.log('\n=== Trie-based route matching tests ===');
-console.log('Testing the optimized trie-based matching implementation with complex route patterns');
-try {
-  execSync('node test/trie-matching.test.js', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
-} catch (error) {
-  console.error('Trie-based matching tests failed:', error);
-  process.exit(1);
-}
-
-console.log('\n=== Complex middleware integration tests ===');
-console.log('Testing realistic middleware scenarios with complex route patterns and authentication states');
-try {
-  execSync('node test/complex-middleware-test.js', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
-} catch (error) {
-  console.error('Complex middleware integration tests failed:', error);
-  process.exit(1);
-}
-
-console.log('\n✅ All tests completed successfully!');

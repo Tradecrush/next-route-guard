@@ -1,7 +1,7 @@
-const path = require('path');
-const { execSync } = require('child_process');
-const assert = require('assert');
-const { NextResponse } = require('next/server');
+import { describe, test, expect, beforeAll } from 'vitest';
+import path from 'path';
+import { execSync } from 'child_process';
+import { NextResponse } from 'next/server';
 
 /**
  * Test file for next-route-guard trie-based URL matching
@@ -9,16 +9,18 @@ const { NextResponse } = require('next/server');
  * and rest segments that come after dynamic or catch-all segments.
  */
 
-// Build the package first to ensure the dist folder exists
-try {
-  execSync('npm run build', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
-} catch (error) {
-  console.error('Failed to build package:', error);
-  process.exit(1);
-}
+// Build the package before running tests
+beforeAll(() => {
+  try {
+    execSync('npm run build', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+  } catch (error) {
+    console.error('Failed to build package:', error);
+    throw error;
+  }
+});
 
-// Now require the built module to test the actual implementation
-const routeAuth = require('../dist/index.js');
+// Import the module - dynamically because we need to build it first
+import * as routeAuth from '../dist/index.js';
 
 // Create a mock NextRequest class for testing
 class MockNextRequest {
@@ -135,45 +137,73 @@ const complexTestCases = [
   { url: '/api/users', expected: true, desc: 'API route should be included in this test' },
 ];
 
-// Run the complex matching tests
-async function runComplexMatchingTests() {
-  console.log('🧪 Running trie-based complex route matching tests...');
-  console.log('Testing complex route patterns with trie-based implementation');
-  
-  let passCount = 0;
-  let failCount = 0;
-  
-  // Test each case using the real middleware
-  for (const testCase of complexTestCases) {
-    const { url, expected, desc } = testCase;
-    
-    try {
-      // Test using actual middleware
+// Complex route matching tests using Vitest
+describe('Trie-based Complex Route Matching', () => {
+  // Group tests by category for better organization
+  describe('Rest segments after catch-all', () => {
+    const catchAllTests = complexTestCases.slice(0, 5);
+    test.each(catchAllTests)('$desc - $url should be $expected ? protected : public', async ({ url, expected, desc }) => {
       const isProtected = await testRouteProtection(url, complexRouteMap);
-      
-      // Check result
-      assert.equal(isProtected, expected, `${desc} - URL: ${url} should be ${expected ? 'protected' : 'public'}`);
-      console.log(`✅ PASS: ${desc} - ${url} is correctly ${expected ? 'protected' : 'public'}`);
-      passCount++;
-    } catch (error) {
-      console.log(`❌ FAIL: ${desc} - ${url}`);
-      console.log(`   Expected: ${expected ? 'protected' : 'public'}, Got: ${!expected ? 'protected' : 'public'}`);
-      console.log(`   ${error.message}`);
-      failCount++;
-    }
-  }
-  
-  // Summary
-  console.log(`\n📝 Test Summary: ${passCount} passed, ${failCount} failed`);
-  
-  if (failCount > 0) {
-    console.log('\n⚠️ Some tests failed. Please check the trie-based route matching implementation.');
-    process.exit(1);
-  } else {
-    console.log('\n✅ All complex trie-based route matching tests passed!');
-    console.log('The trie-based implementation correctly handles complex Next.js route patterns.');
-  }
-}
+      expect(isProtected).toBe(expected);
+    });
+  });
+
+  describe('Required vs optional catch-all', () => {
+    const catchAllTypeTests = complexTestCases.slice(5, 10);
+    test.each(catchAllTypeTests)('$desc - $url should be $expected ? protected : public', async ({ url, expected, desc }) => {
+      const isProtected = await testRouteProtection(url, complexRouteMap);
+      expect(isProtected).toBe(expected);
+    });
+  });
+
+  describe('Dynamic parameters with rest segments', () => {
+    const dynamicParamTests = complexTestCases.slice(10, 13);
+    test.each(dynamicParamTests)('$desc - $url should be $expected ? protected : public', async ({ url, expected, desc }) => {
+      const isProtected = await testRouteProtection(url, complexRouteMap);
+      expect(isProtected).toBe(expected);
+    });
+  });
+
+  describe('Multiple dynamic parameters', () => {
+    const multiDynamicTests = complexTestCases.slice(13, 16);
+    test.each(multiDynamicTests)('$desc - $url should be $expected ? protected : public', async ({ url, expected, desc }) => {
+      const isProtected = await testRouteProtection(url, complexRouteMap);
+      expect(isProtected).toBe(expected);
+    });
+  });
+
+  describe('Mixed dynamic and catch-all', () => {
+    const mixedPatternTests = complexTestCases.slice(16, 18);
+    test.each(mixedPatternTests)('$desc - $url should be $expected ? protected : public', async ({ url, expected, desc }) => {
+      const isProtected = await testRouteProtection(url, complexRouteMap);
+      expect(isProtected).toBe(expected);
+    });
+  });
+
+  describe('Optional catch-all with rest segments', () => {
+    const optionalCatchAllTests = complexTestCases.slice(18, 22);
+    test.each(optionalCatchAllTests)('$desc - $url should be $expected ? protected : public', async ({ url, expected, desc }) => {
+      const isProtected = await testRouteProtection(url, complexRouteMap);
+      expect(isProtected).toBe(expected);
+    });
+  });
+
+  describe('Public catch-all with protected edit segment', () => {
+    const publicCatchAllTests = complexTestCases.slice(22, 27);
+    test.each(publicCatchAllTests)('$desc - $url should be $expected ? protected : public', async ({ url, expected, desc }) => {
+      const isProtected = await testRouteProtection(url, complexRouteMap);
+      expect(isProtected).toBe(expected);
+    });
+  });
+
+  describe('Edge cases', () => {
+    const edgeCaseTests = complexTestCases.slice(27);
+    test.each(edgeCaseTests)('$desc - $url should be $expected ? protected : public', async ({ url, expected, desc }) => {
+      const isProtected = await testRouteProtection(url, complexRouteMap);
+      expect(isProtected).toBe(expected);
+    });
+  });
+});
 
 // Store performance metrics for README update
 let triePerformanceResults = {};
@@ -271,10 +301,8 @@ async function runPerformanceTest() {
   console.log('----------------------------------------------------------------');
 }
 
-// Run the tests
-async function runAllTests() {
-  await runComplexMatchingTests();
+// Fix for undefined runComplexMatchingTests function
+// The performance test is sufficient on its own
+test('Performance test', async () => {
   await runPerformanceTest();
-}
-
-runAllTests();
+});

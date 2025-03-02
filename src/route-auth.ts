@@ -285,6 +285,21 @@ function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean
   
   // Match path segments
   let matchIndex = 0;
+  
+  // Special case for segments like `/admin` that match `/admin/[[...slug]]`
+  // When we have a route like /admin/[[...slug]], the trie has structure:
+  // root -> 'admin' -> catchAllChild with isOptional=true
+  // So we need to check if the 'admin' node has a catchAllChild before going into the segment matching
+  if (segments.length === 1 && segments[0] && currentNode.children.has(segments[0])) {
+    const firstSegmentNode = currentNode.children.get(segments[0]);
+    if (firstSegmentNode && firstSegmentNode.catchAllChild && firstSegmentNode.catchAllChild.isOptional) {
+      // We're at the exact node that has the optional catch-all child
+      if (firstSegmentNode.catchAllChild.node.isProtected !== undefined) {
+        return firstSegmentNode.catchAllChild.node.isProtected;
+      }
+    }
+  }
+  
   while (matchIndex < segments.length) {
     const segment = segments[matchIndex];
     let matched = false;
