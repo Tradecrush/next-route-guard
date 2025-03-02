@@ -54,17 +54,6 @@ The test suite is run in CI for every pull request and push to main branches:
 
 This ensures the package remains compatible with all supported environments.
 
-## Test Categories
-
-The unit tests cover several important aspects of the package:
-
-1. **Route Matching**: Basic tests for URL matching against route maps
-2. **Trie Matching**: Advanced tests for the trie-based route matching algorithm
-3. **Advanced Routes**: Tests for complex routing patterns
-4. **Custom Group Names**: Tests for user-defined group names and nested group behavior
-5. **Complex Middleware**: Tests for middleware chaining and advanced configurations
-6. **Performance**: Benchmarks for the trie-based implementation
-
 ## Adding New Tests
 
 When adding new tests:
