@@ -677,9 +677,9 @@ Here, article pages with dynamic slugs are public, while user profiles with dyna
 
 Next Route Guard is fully tested with the following Next.js versions:
 
-- Next.js 13.4.0 (App Router initial release)
-- Next.js 14.0.0
-- Next.js 15.0.0
+- ✅ Next.js 13.4.0 (App Router initial release)
+- ✅ Next.js 14.0.0
+- ✅ Next.js 15.0.0
 
 The middleware is optimized for the Edge runtime and uses efficient algorithms for route matching, making it suitable for production use with minimal overhead.
 
