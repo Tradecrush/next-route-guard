@@ -103,9 +103,9 @@ export function setupNextResponseMocks() {
 }
 
 // Helper function to test route protection
-export async function testRouteProtection(pathname, routeMap, routeAuth, options = {}) {
+export async function testRouteProtection(pathname, routeMap, routeGuard, options = {}) {
   // Create middleware with mock auth
-  const middleware = routeAuth.createRouteAuthMiddleware({
+  const middleware = routeGuard.createRouteGuardMiddleware({
     isAuthenticated: () => false, // Always return false for testing protection
     routeMap,
     onUnauthenticated: (req) => {

@@ -32,13 +32,13 @@ export interface RouteMap {
 }
 
 /**
- * Configuration options for creating a route authentication middleware
+ * Configuration options for creating a route guard middleware
  *
  * These options control how the middleware behaves, including how to check
  * authentication, how to handle unauthenticated requests, and which routes
  * to protect or exclude.
  */
-export interface RouteAuthOptions {
+export interface RouteGuardOptions {
   /**
    * Function to determine if a user is authenticated
    *

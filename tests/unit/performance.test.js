@@ -12,7 +12,7 @@ import { buildPackageBeforeTests, setupTestEnvironment, MockNextRequest, setupNe
 buildPackageBeforeTests();
 
 // Import the module after building
-import * as routeAuth from '../../dist/index.js';
+import * as routeGuard from '../../dist/index.js';
 
 // Setup test environment
 setupTestEnvironment();

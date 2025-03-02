@@ -1,6 +1,10 @@
 # @tradecrush/next-route-guard
 
-> 🚀 **NEW v0.2.2**: Custom route groups, nested protection overrides, and improved innermost group precedence!
+> 🚀 **NEW v0.2.3**: API name consistency for better alignment with the package name
+>
+> ⚠️ **BREAKING CHANGE**: The primary function and types have been renamed:
+> - `createRouteAuthMiddleware` → `createRouteGuardMiddleware`
+> - `RouteAuthOptions` → `RouteGuardOptions`
 >
 > ⚡ **OPTIMIZED**: Trie-based route matching (67× faster), improved optional catch-all route handling, and complete Next.js version compatibility!
 
@@ -44,7 +48,7 @@ yarn add @tradecrush/next-route-guard
 pnpm add @tradecrush/next-route-guard
 ```
 
-## Quick Start
+## ⭐ Quick Start
 
 1. **Organize your routes** using the `(public)` and `(protected)` route groups:
 
@@ -78,11 +82,11 @@ app/
 
 ```typescript
 // middleware.ts
-import { createRouteAuthMiddleware } from '@tradecrush/next-route-guard';
+import { createRouteGuardMiddleware } from '@tradecrush/next-route-guard';
 import routeMap from './app/route-map.json';
 import { NextResponse } from 'next/server';
 
-export default createRouteAuthMiddleware({
+export default createRouteGuardMiddleware({
   routeMap,
   isAuthenticated: async (request) => {
     // Replace with your actual authentication logic
@@ -266,14 +270,176 @@ When a request arrives:
 
 This approach provides orders of magnitude better performance than a linear search through route lists, especially for applications with many routes or complex routing patterns.
 
-## Route Protection Rules
+## 🔐 Route Protection Strategy
 
-Routes are protected based on the following rules:
+Next Route Guard uses Next.js [Route Groups](https://nextjs.org/docs/app/building-your-application/routing/route-groups) to determine which routes are protected and which are public.
 
-1. Routes inside a `(public)` directory group are **always public**
-2. Routes inside a `(protected)` directory group are **always protected**
-3. Child routes inherit protection from parent routes
-4. Routes not explicitly marked inherit the default setting (protected by default)
+### Directory Conventions
+
+- Routes in `(public)` groups are **public** and don't require authentication
+- Routes in `(protected)` groups are **protected** and require authentication
+- Routes inherit protection status from their parent directories
+- Routes without an explicit protection status are **protected by default** (you can change this)
+
+### Custom Group Names
+
+You can use custom group names instead of the default `(public)` and `(protected)`:
+
+```bash
+npx next-route-guard-generate --app-dir ./app --output ./app/route-map.json --public "(open),(guest)" --protected "(auth),(admin)"
+```
+
+This allows you to use groups like:
+
+```
+app/
+├── (open)/          # Public routes (custom name)
+│   ├── about/
+│   └── signup/
+├── (guest)/         # Also public routes (custom name)
+│   └── features/
+├── (auth)/          # Protected routes (custom name)
+│   ├── dashboard/
+│   └── settings/
+├── (admin)/         # Also protected routes (custom name)
+│   └── users/
+├── layout.tsx
+└── page.tsx
+```
+
+### Nested Groups and Precedence
+
+Nested groups take precedence over parent groups. This allows more fine-grained control:
+
+```
+app/
+├── (public)/                # Public routes
+│   ├── about/
+│   ├── docs/
+│   │   ├── public-page/
+│   │   └── (protected)/    # Protected routes within public section
+│   │       └── admin/
+│   └── signup/
+└── (protected)/            # Protected routes
+    ├── dashboard/
+    └── settings/
+        └── (public)/       # Public routes within protected section
+            └── help/
+```
+
+With this structure:
+- `/about` is public (from parent `(public)`)
+- `/docs/public-page` is public (from parent `(public)`)
+- `/docs/admin` is protected (from nested `(protected)`)
+- `/dashboard` is protected (from parent `(protected)`)
+- `/settings/help` is public (from nested `(public)`)
+
+## 📚 API Reference
+
+The package provides several functions and types to help with route protection:
+
+### createRouteGuardMiddleware
+
+The main function that creates a Next.js middleware function for route protection.
+
+```typescript
+function createRouteGuardMiddleware(options: RouteGuardOptions): Middleware
+```
+
+#### RouteGuardOptions
+
+```typescript
+interface RouteGuardOptions {
+  /**
+   * Function to determine if a user is authenticated
+   */
+  isAuthenticated: (request: NextRequest) => Promise<boolean> | boolean;
+  
+  /**
+   * Function to handle unauthenticated requests
+   * Default: Redirects to /login with the original URL as a 'from' parameter
+   */
+  onUnauthenticated?: (request: NextRequest) => Promise<NextResponse> | NextResponse;
+  
+  /**
+   * Map of protected and public routes
+   */
+  routeMap: RouteMap;
+  
+  /**
+   * Default behavior for routes not in the route map
+   * Default: true (routes are protected by default)
+   */
+  defaultProtected?: boolean;
+  
+  /**
+   * URLs to exclude from authentication checks
+   * Default: ['/api/(.*)'] (excludes all API routes)
+   */
+  excludeUrls?: (string | RegExp)[];
+}
+```
+
+### Middleware Chaining
+
+You can chain middleware functions to create a pipeline:
+
+```typescript
+// middleware.ts
+import { createRouteGuardMiddleware, chain } from '@tradecrush/next-route-guard';
+import routeMap from './app/route-map.json';
+import { NextResponse } from 'next/server';
+
+// Logging middleware
+const withLogging = (next) => {
+  return async (request) => {
+    console.log(`Request: ${request.method} ${request.url}`);
+    return next(request);
+  };
+};
+
+// Auth middleware
+const withAuth = createRouteGuardMiddleware({
+  routeMap,
+  isAuthenticated: (request) => {
+    const token = request.cookies.get('token')?.value;
+    return !!token;
+  },
+  onUnauthenticated: (request) => {
+    const url = new URL('/login', request.url);
+    return NextResponse.redirect(url);
+  }
+});
+
+// Header middleware
+const withHeaders = (next) => {
+  return async (request) => {
+    const response = await next(request);
+    if (response) {
+      response.headers.set('X-Powered-By', 'Next Route Guard');
+    }
+    return response;
+  };
+};
+
+// Export the middleware chain
+export default chain([withLogging, withAuth, withHeaders]);
+
+// Add a matcher
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+};
+```
+
+## 🛠️ Development Mode
+
+During development, you can use the watch mode to automatically update the route map when files change:
+
+```bash
+npx next-route-guard-watch --app-dir ./app --output ./app/route-map.json
+```
+
+This will watch for changes in your app directory and update the route map when files are added, modified, or deleted.
 
 ## CLI Tools
 
@@ -314,82 +480,36 @@ next-route-guard-watch --app-dir ./src/app --output ./src/lib/route-map.json
 
 Options: Same as `next-route-guard-generate`
 
-## Advanced Configuration
+## 📦 Package Exports
 
-### Custom Route Groups
-
-You can define your own route group names:
-
-```bash
-next-route-guard-generate --public "(guest),(unprotected)" --protected "(auth),(secure)"
-```
-
-This allows you to use your own conventions in the directory structure:
-
-```
-app/
-├── (guest)/           # Public routes
-│   └── login/
-├── (unprotected)/     # More public routes
-│   └── about/
-├── (auth)/            # Protected routes
-│   └── dashboard/
-└── (secure)/          # More protected routes
-    └── admin/
-```
-
-### Nested Group Behavior
-
-When you have nested route groups with different protection levels, the **innermost (most specific) group takes precedence**. This allows for fine-grained control over route protection:
-
-```
-app/
-├── (public)/                  # Public routes group
-│   ├── help/
-│   │   └── page.tsx           # Public route
-│   └── docs/  
-│       ├── page.tsx           # Public route  
-│       └── (protected)/       # Nested protected group
-│           └── admin/
-│               └── page.tsx   # PROTECTED route (/docs/admin)
-├── (protected)/               # Protected routes group
-│   ├── dashboard/
-│   │   └── page.tsx           # Protected route
-│   └── settings/
-│       ├── page.tsx           # Protected route
-│       └── (public)/          # Nested public group
-│           └── faq/
-│               └── page.tsx   # PUBLIC route (/settings/faq)
-```
-
-In this example:
-- `/help` and `/docs` are public (from the outer `(public)` group)
-- `/docs/admin` is protected (from the inner `(protected)` group)
-- `/dashboard` and `/settings` are protected (from the outer `(protected)` group)
-- `/settings/faq` is public (from the inner `(public)` group)
-
-This hierarchical approach gives you precise control over which routes require authentication.
-
-### Route Map Location
-
-By default, the route map is saved to `./app/route-map.json`. You can customize this location:
-
-```bash
-next-route-guard-generate --output "./lib/route-map.json"
-```
-
-Then update your middleware to import from the new location:
+The package exports the following:
 
 ```typescript
-import routeMap from './lib/route-map.json';
+{
+  // Main middleware creator
+  createRouteGuardMiddleware,
+  
+  // Utility for chaining middleware
+  chain,
+
+  // Route map generator (for build scripts)
+  generateRouteMap,
+  
+  // Types
+  type RouteGuardOptions,
+  type RouteMap,
+  type NextMiddleware
+}
 ```
+
+## Advanced Configuration
 
 ### Excluding URLs
 
 Some URL patterns can be excluded from authentication checks:
 
 ```typescript
-createRouteAuthMiddleware({
+createRouteGuardMiddleware({
   // ...
   excludeUrls: [
     '/api/(.*)',        // Exclude API routes 
@@ -404,7 +524,7 @@ createRouteAuthMiddleware({
 By default, routes are protected unless explicitly marked as public. You can change this behavior:
 
 ```typescript
-createRouteAuthMiddleware({
+createRouteGuardMiddleware({
   // ...
   defaultProtected: false  // Routes are public by default
 });
@@ -417,7 +537,7 @@ This means routes without explicit protection groups will be treated as public.
 Implement your own authentication logic by providing an `isAuthenticated` function:
 
 ```typescript
-createRouteAuthMiddleware({
+createRouteGuardMiddleware({
   // ...
   isAuthenticated: async (request) => {
     // Check for a JWT in the Authorization header
@@ -443,7 +563,7 @@ createRouteAuthMiddleware({
 Override the default redirection behavior:
 
 ```typescript
-createRouteAuthMiddleware({
+createRouteGuardMiddleware({
   // ...
   onUnauthenticated: (request) => {
     // Different behavior based on route type
@@ -470,33 +590,6 @@ createRouteAuthMiddleware({
     return NextResponse.redirect(url);
   }
 });
-```
-
-### Chaining Middleware
-
-You can combine authentication with other middleware:
-
-```typescript
-import { createRouteAuthMiddleware, chain } from '@tradecrush/next-route-guard';
-import { NextResponse } from 'next/server';
-
-// Logging middleware
-const withLogging = (next) => {
-  return (request) => {
-    console.log(`Request: ${request.method} ${request.url}`);
-    return next(request);
-  };
-};
-
-// Auth middleware factory
-const withAuth = createRouteAuthMiddleware({
-  // Your auth options...
-});
-
-// Export the chained middleware
-export default function middleware(request) {
-  return chain([withLogging, withAuth])(request);
-}
 ```
 
 ## Example Scenarios
@@ -563,129 +656,20 @@ app/
 
 Here, article pages with dynamic slugs are public, while user profiles with dynamic IDs are protected.
 
-## API Reference
+## 🧪 Compatibility
 
-### createRouteAuthMiddleware
+Next Route Guard is fully tested with the following Next.js versions:
 
-Creates a Next.js middleware function that handles authentication based on route patterns.
+- Next.js 13.4.0 (App Router initial release)
+- Next.js 14.0.0
+- Next.js 15.0.0
 
-```typescript
-function createRouteAuthMiddleware(options: RouteAuthOptions): Middleware
-```
+The middleware is optimized for the Edge runtime and uses efficient algorithms for route matching, making it suitable for production use with minimal overhead.
 
-#### RouteAuthOptions
+## 📄 License
 
-```typescript
-interface RouteAuthOptions {
-  /**
-   * Function to determine if a user is authenticated
-   */
-  isAuthenticated: (request: NextRequest) => Promise<boolean> | boolean;
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-  /**
-   * Function to handle unauthenticated requests
-   * @default Redirects to /login
-   */
-  onUnauthenticated?: (request: NextRequest) => Promise<NextResponse> | NextResponse;
+---
 
-  /**
-   * Map of protected and public routes
-   * Generated at build time for Edge runtime compatibility
-   */
-  routeMap: RouteMap;
-
-  /**
-   * Default behavior for routes not matching any pattern
-   * @default true - Routes are protected by default
-   */
-  defaultProtected?: boolean;
-
-  /**
-   * URLs to exclude from auth checking (regexes or strings)
-   * @default ['/api/(.*)']
-   */
-  excludeUrls?: (string | RegExp)[];
-}
-```
-
-#### RouteMap
-
-```typescript
-interface RouteMap {
-  /**
-   * Array of paths that are protected and require authentication
-   */
-  protected: string[];
-
-  /**
-   * Array of paths that are public and don't require authentication
-   */
-  public: string[];
-}
-```
-
-### chain
-
-Function to chain multiple middleware factories together.
-
-```typescript
-function chain(functions: MiddlewareFactory[], index = 0): Middleware
-```
-
-#### MiddlewareFactory
-
-```typescript
-type MiddlewareFactory = (middleware: Middleware) => Middleware;
-```
-
-#### Middleware
-
-```typescript
-type Middleware = (
-  request: NextRequest,
-  event?: NextFetchEvent
-) => Promise<NextResponse | undefined> | NextResponse | undefined;
-```
-
-## TypeScript Support
-
-The package includes TypeScript definitions for all APIs:
-
-```typescript
-import { 
-  createRouteAuthMiddleware, 
-  chain,
-  type RouteAuthOptions, 
-  type RouteMap,
-  type Middleware,
-  type MiddlewareFactory
-} from '@tradecrush/next-route-guard';
-```
-
-## Next.js Version Compatibility
-
-Next Route Guard includes a comprehensive compatibility test suite that creates and tests real Next.js applications using all supported Next.js versions:
-
-| Next.js Version | Status | Notes |
-|-----------------|--------|-------|
-| 13.4.0 | ✅ Compatible | First version with stable App Router |
-| 14.0.0 | ✅ Compatible | Full support for all features |
-| 15.0.0 | ✅ Compatible | Latest major version |
-
-For each version, our automated tests:
-
-1. **Create a real Next.js application** with complex routes including dynamic segments, catch-all routes, etc.
-2. **Generate a route map** using the Next Route Guard CLI 
-3. **Build the Next.js app** to verify middleware compatibility
-4. **Start the app server** and make actual HTTP requests to test route protection
-5. **Verify behavior** of both public and protected routes with and without authentication
-
-These end-to-end tests ensure that Next Route Guard works seamlessly across all supported Next.js versions.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-MIT
+Made with ❤️ by [Tradecrush](https://www.tradecrush.io)

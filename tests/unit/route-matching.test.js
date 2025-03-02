@@ -1,8 +1,8 @@
 import { describe, test, expect } from 'vitest';
 import { NextResponse } from 'next/server';
-import {
-  buildPackageBeforeTests,
-  setupTestEnvironment,
+import { 
+  buildPackageBeforeTests, 
+  setupTestEnvironment, 
   MockNextRequest,
   testRouteProtection,
   setupNextResponseMocks
@@ -21,7 +21,7 @@ import {
 buildPackageBeforeTests();
 
 // Import the module after building
-import * as routeAuth from '../../dist/index.js';
+import * as routeGuard from '../../dist/index.js';
 
 // Setup test environment
 setupTestEnvironment();
@@ -116,7 +116,7 @@ describe('Route Matching Tests', () => {
     test.each(catchAllTests)(
       '$desc - $url should be $expected ? protected : public',
       async ({ url, expected, _desc }) => {
-        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeGuard);
         expect(isProtected).toBe(expected);
       }
     );
@@ -127,7 +127,7 @@ describe('Route Matching Tests', () => {
     test.each(catchAllTypeTests)(
       '$desc - $url should be $expected ? protected : public',
       async ({ url, expected, _desc }) => {
-        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeGuard);
         expect(isProtected).toBe(expected);
       }
     );
@@ -138,7 +138,7 @@ describe('Route Matching Tests', () => {
     test.each(dynamicParamTests)(
       '$desc - $url should be $expected ? protected : public',
       async ({ url, expected, _desc }) => {
-        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeGuard);
         expect(isProtected).toBe(expected);
       }
     );
@@ -149,7 +149,7 @@ describe('Route Matching Tests', () => {
     test.each(multiDynamicTests)(
       '$desc - $url should be $expected ? protected : public',
       async ({ url, expected, _desc }) => {
-        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeGuard);
         expect(isProtected).toBe(expected);
       }
     );
@@ -160,7 +160,7 @@ describe('Route Matching Tests', () => {
     test.each(mixedPatternTests)(
       '$desc - $url should be $expected ? protected : public',
       async ({ url, expected, _desc }) => {
-        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeGuard);
         expect(isProtected).toBe(expected);
       }
     );
@@ -171,7 +171,7 @@ describe('Route Matching Tests', () => {
     test.each(optionalCatchAllTests)(
       '$desc - $url should be $expected ? protected : public',
       async ({ url, expected, _desc }) => {
-        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeGuard);
         expect(isProtected).toBe(expected);
       }
     );
@@ -182,7 +182,7 @@ describe('Route Matching Tests', () => {
     test.each(publicCatchAllTests)(
       '$desc - $url should be $expected ? protected : public',
       async ({ url, expected, _desc }) => {
-        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeGuard);
         expect(isProtected).toBe(expected);
       }
     );
@@ -193,29 +193,29 @@ describe('Route Matching Tests', () => {
     test.each(edgeCaseTests)(
       '$desc - $url should be $expected ? protected : public',
       async ({ url, expected, _desc }) => {
-        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeGuard);
         expect(isProtected).toBe(expected);
       }
     );
   });
-
+  
   describe('Error Handling', () => {
     test('should handle empty route map', async () => {
       const emptyRouteMap = {
         public: [],
         protected: []
       };
-
-      const middleware = routeAuth.createRouteAuthMiddleware({
+      
+      const middleware = routeGuard.createRouteGuardMiddleware({
         isAuthenticated: () => false,
         routeMap: emptyRouteMap,
         onUnauthenticated: (req) => NextResponse.redirect(new URL('/login', req.url))
       });
-
+      
       // Default behavior should apply (defaultProtected: true)
       const request = new MockNextRequest('/some/path');
       const response = await middleware(request);
-
+      
       // Should be protected by default
       expect(response.headers.get('location')).toContain('/login');
     });
@@ -225,14 +225,14 @@ describe('Route Matching Tests', () => {
         public: ['/about'],
         protected: ['/dashboard']
       };
-
-      const middleware = routeAuth.createRouteAuthMiddleware({
+      
+      const middleware = routeGuard.createRouteGuardMiddleware({
         isAuthenticated: () => false,
         routeMap,
         onUnauthenticated: (req) => NextResponse.redirect(new URL('/login', req.url)),
         excludeUrls: ['/api/(.*)', '/static/(.*)', '/health']
       });
-
+      
       // Test each excluded URL pattern
       const excludedRequests = [
         new MockNextRequest('/api/users'),
@@ -240,18 +240,18 @@ describe('Route Matching Tests', () => {
         new MockNextRequest('/static/images/logo.png'),
         new MockNextRequest('/health')
       ];
-
+      
       for (const request of excludedRequests) {
         const response = await middleware(request);
         // Excluded routes get NextResponse.next(), not null
         expect(response).not.toBeNull();
       }
-
+      
       // Test protected route
       const protectedRequest = new MockNextRequest('/dashboard');
       const protectedResponse = await middleware(protectedRequest);
       expect(protectedResponse.headers.get('location')).toContain('/login');
-
+      
       // Test public route
       const publicRequest = new MockNextRequest('/about');
       const publicResponse = await middleware(publicRequest);

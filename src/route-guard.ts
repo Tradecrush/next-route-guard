@@ -4,7 +4,7 @@
  * and enforcing authentication based on the route map generated at build time.
  */
 import { NextResponse, type NextRequest } from 'next/server';
-import type { RouteAuthOptions, RouteMap } from './types';
+import type { RouteGuardOptions, RouteMap } from './types';
 
 /**
  * Default route to redirect to when authentication fails
@@ -44,7 +44,7 @@ interface RouteNode {
  * @param options - Configuration options for the middleware
  * @returns A Next.js middleware function
  */
-export function createRouteAuthMiddleware(options: RouteAuthOptions) {
+export function createRouteGuardMiddleware(options: RouteGuardOptions) {
   // Set up default options
   const {
     isAuthenticated,

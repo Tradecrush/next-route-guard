@@ -233,11 +233,11 @@ module.exports = nextConfig;
   // Create middleware.js
   fs.writeFileSync(
     path.join(testDir, 'middleware.js'),
-    `import { createRouteAuthMiddleware } from "@tradecrush/next-route-guard";
+    `import { createRouteGuardMiddleware } from "@tradecrush/next-route-guard";
 import { NextResponse } from "next/server";
 import routeMap from "./app/route-map.json";
 
-export default createRouteAuthMiddleware({
+export default createRouteGuardMiddleware({
   routeMap,
   isAuthenticated: () => false,
   onUnauthenticated: (request) => {
