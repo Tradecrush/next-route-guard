@@ -1,63 +1,34 @@
-# Unit Tests for Next-Route-Guard
+# Next-Route-Guard Unit Tests
 
-This directory contains unit tests that verify the core functionality of the Next Route Guard package.
+This directory contains the unit tests for the Next Route Guard package. These tests verify the core functionality of the package without requiring a full Next.js application.
 
-## Test Categories
+## Test Files
 
-The unit tests are organized into several categories:
+- **route-matching.test.js**: Tests route matching functionality with complex patterns and error handling
+- **advanced-routes.test.js**: Tests complex Next.js App Router patterns like parallel routes and intercepted routes
+- **custom-group-names.test.js**: Tests user-defined group patterns and nested group precedence
+- **generate-routes.test.js**: Tests the creation of route maps from basic directory structures
+- **middleware-chaining.test.js**: Tests the ability to chain multiple middleware functions
+- **performance.test.js**: Benchmarks trie-based route matching implementation
 
-1. **Route Matching Tests** - Tests the ability to match URLs to patterns, including dynamic segments and catch-all routes
-2. **Advanced Routes Tests** - Tests complex routing patterns including nested route groups and protection inheritance
-3. **Generate Routes Tests** - Tests the route map generation script with different app directory structures
-4. **Trie Matching Tests** - Tests the trie-based route matching algorithm with complex path patterns
-5. **Custom Group Names Tests** - Tests user-defined group names and nested group behavior
-6. **Complex Middleware Tests** - Tests the middleware behavior with different authentication states and route configurations
-7. **Performance Tests** - Benchmarks the performance of the route matching algorithm
-
-## Running Unit Tests
+## Running the Tests
 
 ```bash
 # Run all unit tests
 npm run test:unit
 
-# Run a specific test file
+# Run a specific test
 npx vitest run tests/unit/route-matching.test.js
 
-# Run tests in watch mode during development
-npx vitest tests/unit
+# Run with coverage report
+npx vitest run --coverage
 ```
 
-## Test App Structure
-
-Many tests create temporary app directory structures to test the route generation and matching logic. These test apps include various patterns of Next.js routes including:
-
-- Static routes
-- Dynamic segments (`[id]`)
-- Catch-all routes (`[...slug]`)
-- Optional catch-all routes (`[[...path]]`)
-- Nested route groups with different protection levels
-- Parallel routes (`@slot`)
-- Intercepted routes (`(.)`)
-
-## Custom Group Names Tests
-
-The `custom-group-names.test.js` file contains tests specifically for the custom group names feature:
-
-- Using custom route group names like `(guest)`, `(auth)`, `(admin)` instead of the default `(public)` and `(protected)`
-- Processing comma-separated lists of group patterns via CLI options
-- Handling nested groups with different protection levels
-- Ensuring proper precedence where innermost (most specific) groups override parent groups
-
-These tests verify:
-1. Routes under a more specific group inherit the protection status from the innermost group
-2. Routes like `/docs/admin` can be protected even when nested under public parent paths
-3. Custom group names work with various naming patterns, including special characters and unusual names
-
-## Adding New Unit Tests
+## Adding New Tests
 
 When adding new unit tests:
 
-1. Create a new file in this directory with a descriptive name ending in `.test.js`
-2. Import the necessary test utilities from Vitest
-3. Follow the existing patterns for setting up test fixtures
-4. Test both expected behavior and edge cases
+1. Create a new test file with a descriptive name ending in `.test.js`
+2. Follow the existing patterns for test setup and teardown
+3. Use Vitest's testing utilities (`describe`, `test`, `expect`, etc.)
+4. Ensure tests are isolated and don't depend on each other

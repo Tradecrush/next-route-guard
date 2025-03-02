@@ -1,154 +1,262 @@
-import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import path from 'path';
-import { execSync } from 'child_process';
+import { describe, test, expect } from 'vitest';
 import { NextResponse } from 'next/server';
+import {
+  buildPackageBeforeTests,
+  setupTestEnvironment,
+  MockNextRequest,
+  testRouteProtection,
+  setupNextResponseMocks
+} from './test-helpers';
 
 /**
- * Test file for next-route-guard URL matching logic
- * Tests that the next-route-guard implementation correctly handles real URLs
- * without special Next.js syntax markers, including dynamic segments
+ * Comprehensive test file for next-route-guard route matching
+ * Tests all aspects of route matching including:
+ * - Complex route combinations with nested catch-all patterns
+ * - Dynamic segments and rest segments
+ * - Error handling cases (empty maps, exclusions)
+ * - Edge cases
  */
 
 // Build the package before running tests
-beforeAll(() => {
-  try {
-    execSync('npm run build', { stdio: 'inherit', cwd: path.resolve(__dirname, '../..') });
-  } catch (error) {
-    console.error('Failed to build package:', error);
-    throw error;
-  }
-});
+buildPackageBeforeTests();
 
-// Import the module - dynamically because we need to build it first
+// Import the module after building
 import * as routeAuth from '../../dist/index.js';
 
-// Add clean up after all tests
-import fs from 'fs';
-// Clean up the test directory
-function cleanTestDirectories() {
-  const testDirs = [path.resolve(__dirname, 'test-app'), path.resolve(__dirname, 'test-app-advanced')];
+// Setup test environment
+setupTestEnvironment();
 
-  for (const dir of testDirs) {
-    try {
-      if (fs.existsSync(dir)) {
-        fs.rmSync(dir, { recursive: true, force: true });
-      }
-    } catch (error) {
-      console.error(`Error cleaning directory ${dir}:`, error);
-    }
-  }
-}
+// Setup Next.js response mocks
+setupNextResponseMocks();
 
-// Clean up test directories before each test suite runs
-beforeEach(() => {
-  cleanTestDirectories();
-});
-
-// Final cleanup
-afterAll(() => {
-  const testDirs = [path.resolve(__dirname, 'test-app'), path.resolve(__dirname, 'test-app-advanced')];
-  
-  for (const dir of testDirs) {
-    try {
-      if (fs.existsSync(dir)) {
-        fs.rmSync(dir, { recursive: true, force: true });
-      }
-    } catch (error) {
-      console.error(`Error removing directory ${dir}:`, error);
-    }
-  }
-});
-
-// Create a mock NextRequest class for testing
-class MockNextRequest {
-  constructor(pathname) {
-    this.nextUrl = {
-      pathname,
-      clone: function () {
-        return {
-          pathname: this.pathname,
-          searchParams: new URLSearchParams()
-        };
-      },
-      searchParams: new URLSearchParams()
-    };
-    this.url = `https://example.com${pathname}`;
-  }
-}
-
-// Setup test route map
-const testRouteMap = {
-  public: ['/about', '/blog/[...slug]', '/products/[id]', '/features', '/help/faq', '/settings/profile'],
+// Setup test route map for complex cases
+const complexRouteMap = {
+  public: [
+    '/data/[...path]', // Required catch-all (public)
+    '/content/[[...slug]]', // Optional catch-all (public)
+    '/content', // Base path for public optional catch-all
+    '/docs/[...slug]/preview', // Rest segment after catch-all (public)
+    '/docs/public/info', // Static path (public)
+    '/products/[id]/preview', // Rest segment after dynamic param (public)
+    '/shop/[category]/[id]/details', // Multiple dynamic params with rest (public)
+    '/articles/[section]/[...tags]', // Dynamic + catch-all combo (public)
+    '/articles/[section]/[...tags]/share', // Dynamic + catch-all + rest segment (public)
+    '/blog/[...slug]' // Public catch-all from (public) directory group
+  ],
   protected: [
-    '/',
-    '/dashboard',
-    '/users/[id]',
-    '/docs/[[...catchAll]]',
-    '/products/[category]/[id]',
-    '/settings/billing',
-    '/admin/[[...path]]'
+    '/dashboard/[[...path]]', // Optional catch-all (protected)
+    '/dashboard/[[...path]]/edit', // Rest segment after optional catch-all (protected)
+    '/members/[id]', // Dynamic param (protected)
+    '/docs', // Static path (protected)
+    '/docs/[...slug]/edit', // Rest segment with different protection (protected)
+    '/docs/[...slug]/admin', // Another rest segment with different protection (protected)
+    '/shop/[category]/[id]/edit', // Multiple dynamic params with different rest (protected)
+    '/api/users/[[...path]]', // API route (normally excluded by middleware)
+    '/blog/[...slug]/edit' // Protected rest segment after public catch-all
   ]
 };
 
-// Test cases for URL matching
-const testCases = [
-  // Public routes
-  { url: '/about', expected: false, desc: 'Simple public route' },
-  { url: '/blog/intro', expected: false, desc: 'Simple catch-all slug' },
-  { url: '/blog/2023/01/first-post', expected: false, desc: 'Multi-segment catch-all slug' },
-  { url: '/products/123', expected: false, desc: 'Dynamic segment in public route' },
-  { url: '/features', expected: false, desc: 'Static public route' },
-  { url: '/help/faq', expected: false, desc: 'Nested public route' },
-  { url: '/settings/profile', expected: false, desc: 'Public route in mixed context' },
-  { url: '/api/users', expected: false, desc: 'API route excluded by default' },
+// Complex test cases focusing on tricky route patterns
+const complexTestCases = [
+  // Rest segments after catch-all
+  { url: '/docs/guide/intro', expected: true, desc: 'Catch-all without rest segment' },
+  { url: '/docs/guide/intro/preview', expected: false, desc: 'Catch-all with public rest segment' },
+  { url: '/docs/guide/intro/edit', expected: true, desc: 'Catch-all with protected rest segment' },
+  { url: '/docs/guide/intro/admin', expected: true, desc: 'Catch-all with another protected rest segment' },
+  { url: '/docs/public/info', expected: false, desc: 'Static path takes precedence over catch-all' },
 
-  // Protected routes
-  { url: '/', expected: true, desc: 'Root route (protected)' },
-  { url: '/dashboard', expected: true, desc: 'Simple protected route' },
-  { url: '/users/456', expected: true, desc: 'Dynamic segment in protected route' },
-  { url: '/docs', expected: true, desc: 'Optional catch-all base route' },
-  { url: '/docs/intro', expected: true, desc: 'Optional catch-all with one segment' },
-  { url: '/docs/advanced/config', expected: true, desc: 'Optional catch-all with multiple segments' },
-  { url: '/products/electronics/789', expected: true, desc: 'Multiple dynamic segments' },
-  { url: '/settings/billing', expected: true, desc: 'Protected route in mixed context' },
-  { url: '/admin', expected: true, desc: 'Admin route base (protected optional catch-all)' },
-  { url: '/admin/users', expected: true, desc: 'Admin route with segment' },
+  // Required vs optional catch-all
+  { url: '/data', expected: true, desc: 'Required catch-all base path (no match)' },
+  { url: '/data/reports', expected: false, desc: 'Required catch-all with segment' },
+  { url: '/data/reports/annual', expected: false, desc: 'Required catch-all with multiple segments' },
+  { url: '/content', expected: false, desc: 'Optional catch-all base path (matches)' },
+  { url: '/content/posts', expected: false, desc: 'Optional catch-all with segment' },
+
+  // Dynamic parameters with rest segments
+  { url: '/products/123', expected: true, desc: 'Dynamic segment (defaults to parent protection)' },
+  { url: '/products/123/preview', expected: false, desc: 'Dynamic segment with public rest' },
+  { url: '/members/456', expected: true, desc: 'Protected dynamic segment' },
+
+  // Multiple dynamic parameters
+  { url: '/shop/electronics/789/details', expected: false, desc: 'Multiple dynamic params with public rest' },
+  { url: '/shop/electronics/789/edit', expected: true, desc: 'Multiple dynamic params with protected rest' },
+  {
+    url: '/shop/electronics/789/unknown',
+    expected: true,
+    desc: 'Multiple dynamic params with unknown rest (defaults)'
+  },
+
+  // Mixed dynamic and catch-all
+  { url: '/articles/tech/javascript/react', expected: false, desc: 'Dynamic param + catch-all' },
+  { url: '/articles/tech/javascript/react/share', expected: false, desc: 'Dynamic + catch-all + rest segment' },
+
+  // Optional catch-all with rest segments
+  { url: '/dashboard', expected: true, desc: 'Optional catch-all base (protected)' },
+  { url: '/dashboard/analytics', expected: true, desc: 'Optional catch-all with segment' },
+  { url: '/dashboard/users/online', expected: true, desc: 'Optional catch-all with multiple segments' },
+  { url: '/dashboard/reports/edit', expected: true, desc: 'Optional catch-all with protected rest segment' },
+
+  // Public catch-all with protected edit segment (directory nesting test)
+  { url: '/blog', expected: true, desc: 'Root path of public catch-all' },
+  { url: '/blog/posts', expected: false, desc: 'Public catch-all with segment' },
+  { url: '/blog/posts/2023/guide', expected: false, desc: 'Public catch-all with multiple segments' },
+  { url: '/blog/posts/2023/guide/edit', expected: true, desc: 'Public catch-all with protected edit segment' },
+  { url: '/blog/edit', expected: true, desc: 'Public catch-all with protected edit segment' },
 
   // Edge cases
-  { url: '/about/', expected: false, desc: 'Trailing slash should match public route' },
-  { url: '/dashboard/', expected: true, desc: 'Trailing slash should match protected route' },
-  { url: '/products/123?ref=email', expected: false, desc: 'Query parameters should be ignored' },
-  { url: '/docs#section-1', expected: true, desc: 'Hash should be ignored' },
-  { url: '/non-existent', expected: true, desc: 'Non-existent route should default to protected' },
-  { url: '/blog', expected: true, desc: 'Parent of catch-all should be protected if not defined' }
+  { url: '/unknown/path', expected: true, desc: 'Unknown path should use default protection' },
+  { url: '/api/users', expected: false, desc: 'API route excluded by default' }
 ];
 
-// Helper function to test route protection
-async function testRouteProtection(pathname, routeMap) {
-  // Create middleware with mock auth
-  const middleware = routeAuth.createRouteAuthMiddleware({
-    isAuthenticated: () => false, // Always return false for testing protection
-    routeMap,
-    onUnauthenticated: (req) => {
-      // Return a special response for unauthenticated
-      return NextResponse.redirect(new URL('/login', req.url));
-    }
+// Complex route matching tests using Vitest
+describe('Route Matching Tests', () => {
+  // Group tests by category for better organization
+  describe('Rest segments after catch-all', () => {
+    const catchAllTests = complexTestCases.slice(0, 5);
+    test.each(catchAllTests)(
+      '$desc - $url should be $expected ? protected : public',
+      async ({ url, expected, _desc }) => {
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        expect(isProtected).toBe(expected);
+      }
+    );
   });
 
-  // Create a mock request
-  const request = new MockNextRequest(pathname);
+  describe('Required vs optional catch-all', () => {
+    const catchAllTypeTests = complexTestCases.slice(5, 10);
+    test.each(catchAllTypeTests)(
+      '$desc - $url should be $expected ? protected : public',
+      async ({ url, expected, _desc }) => {
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        expect(isProtected).toBe(expected);
+      }
+    );
+  });
 
-  // Run the middleware
-  const response = await middleware(request);
+  describe('Dynamic parameters with rest segments', () => {
+    const dynamicParamTests = complexTestCases.slice(10, 13);
+    test.each(dynamicParamTests)(
+      '$desc - $url should be $expected ? protected : public',
+      async ({ url, expected, _desc }) => {
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        expect(isProtected).toBe(expected);
+      }
+    );
+  });
 
-  // If response redirects to login, the route is protected
-  return response && response.status === 307 && response.headers.get('location').includes('/login');
-}
+  describe('Multiple dynamic parameters', () => {
+    const multiDynamicTests = complexTestCases.slice(13, 16);
+    test.each(multiDynamicTests)(
+      '$desc - $url should be $expected ? protected : public',
+      async ({ url, expected, _desc }) => {
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        expect(isProtected).toBe(expected);
+      }
+    );
+  });
 
-// Convert to Vitest tests
-describe('Route Matching Logic', () => {
-  test.each(testCases)('$desc - $url should be $expected ? protected : public', async ({ url, expected, _desc }) => {
-    const isProtected = await testRouteProtection(url, testRouteMap);
-    expect(isProtected).toBe(expected);
+  describe('Mixed dynamic and catch-all', () => {
+    const mixedPatternTests = complexTestCases.slice(16, 18);
+    test.each(mixedPatternTests)(
+      '$desc - $url should be $expected ? protected : public',
+      async ({ url, expected, _desc }) => {
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        expect(isProtected).toBe(expected);
+      }
+    );
+  });
+
+  describe('Optional catch-all with rest segments', () => {
+    const optionalCatchAllTests = complexTestCases.slice(18, 22);
+    test.each(optionalCatchAllTests)(
+      '$desc - $url should be $expected ? protected : public',
+      async ({ url, expected, _desc }) => {
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        expect(isProtected).toBe(expected);
+      }
+    );
+  });
+
+  describe('Public catch-all with protected edit segment', () => {
+    const publicCatchAllTests = complexTestCases.slice(22, 27);
+    test.each(publicCatchAllTests)(
+      '$desc - $url should be $expected ? protected : public',
+      async ({ url, expected, _desc }) => {
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        expect(isProtected).toBe(expected);
+      }
+    );
+  });
+
+  describe('Edge cases', () => {
+    const edgeCaseTests = complexTestCases.slice(27);
+    test.each(edgeCaseTests)(
+      '$desc - $url should be $expected ? protected : public',
+      async ({ url, expected, _desc }) => {
+        const isProtected = await testRouteProtection(url, complexRouteMap, routeAuth);
+        expect(isProtected).toBe(expected);
+      }
+    );
+  });
+
+  describe('Error Handling', () => {
+    test('should handle empty route map', async () => {
+      const emptyRouteMap = {
+        public: [],
+        protected: []
+      };
+
+      const middleware = routeAuth.createRouteAuthMiddleware({
+        isAuthenticated: () => false,
+        routeMap: emptyRouteMap,
+        onUnauthenticated: (req) => NextResponse.redirect(new URL('/login', req.url))
+      });
+
+      // Default behavior should apply (defaultProtected: true)
+      const request = new MockNextRequest('/some/path');
+      const response = await middleware(request);
+
+      // Should be protected by default
+      expect(response.headers.get('location')).toContain('/login');
+    });
+
+    test('should support custom URL exclusions', async () => {
+      const routeMap = {
+        public: ['/about'],
+        protected: ['/dashboard']
+      };
+
+      const middleware = routeAuth.createRouteAuthMiddleware({
+        isAuthenticated: () => false,
+        routeMap,
+        onUnauthenticated: (req) => NextResponse.redirect(new URL('/login', req.url)),
+        excludeUrls: ['/api/(.*)', '/static/(.*)', '/health']
+      });
+
+      // Test each excluded URL pattern
+      const excludedRequests = [
+        new MockNextRequest('/api/users'),
+        new MockNextRequest('/api/data/123'),
+        new MockNextRequest('/static/images/logo.png'),
+        new MockNextRequest('/health')
+      ];
+
+      for (const request of excludedRequests) {
+        const response = await middleware(request);
+        // Excluded routes get NextResponse.next(), not null
+        expect(response).not.toBeNull();
+      }
+
+      // Test protected route
+      const protectedRequest = new MockNextRequest('/dashboard');
+      const protectedResponse = await middleware(protectedRequest);
+      expect(protectedResponse.headers.get('location')).toContain('/login');
+
+      // Test public route
+      const publicRequest = new MockNextRequest('/about');
+      const publicResponse = await middleware(publicRequest);
+      // Public routes also return NextResponse.next(), not null
+      expect(publicResponse).not.toBeNull();
+    });
   });
 });

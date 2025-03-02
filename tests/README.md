@@ -13,13 +13,12 @@ This directory contains the comprehensive test suite for the Next Route Guard pa
 The test suite covers all aspects of the package:
 
 ### Unit Tests
-- **Route Matching**: Basic pattern matching and URL handling
-- **Advanced Routes**: Complex Next.js route patterns and directory structures
-- **Custom Group Names**: User-defined group patterns and nested group precedence
-- **Trie Matching**: Performance and correctness of the trie-based route matcher
-- **Generate Routes**: Creation of route maps from directory structures
-- **Middleware**: Authentication checks and route protection behavior
-- **Performance**: Benchmarks comparing different implementation approaches
+- **Route Matching**: Comprehensive testing of URL pattern matching with error handling
+- **Advanced Routes**: Complex Next.js App Router patterns (parallel routes, intercepted routes)
+- **Custom Group Names**: User-defined route group patterns and nested group precedence
+- **Generate Routes**: Creating route maps from directory structures
+- **Middleware Chaining**: Composing multiple middleware functions in a request pipeline
+- **Performance**: Benchmarks for trie-based route matching implementation
 
 ### Compatibility Tests
 - **Next.js Versions**: Tests with Next.js 13.4.0, 14.0.0, and 15.0.0

@@ -142,7 +142,7 @@ describe('Advanced route testing', () => {
       '/products/(.)preview/[id]',
       '/account/login',
       '/account/register',
-      '/help',
+      '/help'
       // '/help/admin' is now protected due to innermost group prioritization
     ];
 
