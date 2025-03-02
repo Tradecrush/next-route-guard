@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 /**
  * Next Route Guard - Route Map Generator
- * 
+ *
  * This CLI tool analyzes your Next.js app directory structure and generates a JSON map of
  * protected and public routes based on directory naming conventions.
- * 
+ *
  * The generated route map is used by the middleware at runtime to enforce authentication
  * checks based on the directory structure.
  */
+
 const fs = require('fs');
+
 const path = require('path');
+
 const { generateRouteMap } = require('../dist');
 
 // Parse command line arguments

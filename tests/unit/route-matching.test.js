@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 
 /**
  * Test file for next-route-guard URL matching logic
- * Tests that the next-route-guard implementation correctly handles real URLs 
+ * Tests that the next-route-guard implementation correctly handles real URLs
  * without special Next.js syntax markers, including dynamic segments
  */
 
@@ -26,11 +26,8 @@ import * as routeAuth from '../../dist/index.js';
 import fs from 'fs';
 // Clean up the test directory
 function cleanTestDirectories() {
-  const testDirs = [
-    path.resolve(__dirname, 'test-app'),
-    path.resolve(__dirname, 'test-app-advanced')
-  ];
-  
+  const testDirs = [path.resolve(__dirname, 'test-app'), path.resolve(__dirname, 'test-app-advanced')];
+
   for (const dir of testDirs) {
     try {
       if (fs.existsSync(dir)) {
@@ -51,9 +48,9 @@ class MockNextRequest {
   constructor(pathname) {
     this.nextUrl = {
       pathname,
-      clone: function() {
-        return { 
-          pathname: this.pathname, 
+      clone: function () {
+        return {
+          pathname: this.pathname,
           searchParams: new URLSearchParams()
         };
       },
@@ -65,14 +62,7 @@ class MockNextRequest {
 
 // Setup test route map
 const testRouteMap = {
-  public: [
-    '/about',
-    '/blog/[...slug]',
-    '/products/[id]',
-    '/features',
-    '/help/faq',
-    '/settings/profile'
-  ],
+  public: ['/about', '/blog/[...slug]', '/products/[id]', '/features', '/help/faq', '/settings/profile'],
   protected: [
     '/',
     '/dashboard',
@@ -95,7 +85,7 @@ const testCases = [
   { url: '/help/faq', expected: false, desc: 'Nested public route' },
   { url: '/settings/profile', expected: false, desc: 'Public route in mixed context' },
   { url: '/api/users', expected: false, desc: 'API route excluded by default' },
-  
+
   // Protected routes
   { url: '/', expected: true, desc: 'Root route (protected)' },
   { url: '/dashboard', expected: true, desc: 'Simple protected route' },
@@ -107,7 +97,7 @@ const testCases = [
   { url: '/settings/billing', expected: true, desc: 'Protected route in mixed context' },
   { url: '/admin', expected: true, desc: 'Admin route base (protected optional catch-all)' },
   { url: '/admin/users', expected: true, desc: 'Admin route with segment' },
-  
+
   // Edge cases
   { url: '/about/', expected: false, desc: 'Trailing slash should match public route' },
   { url: '/dashboard/', expected: true, desc: 'Trailing slash should match protected route' },
@@ -126,22 +116,22 @@ async function testRouteProtection(pathname, routeMap) {
     onUnauthenticated: (req) => {
       // Return a special response for unauthenticated
       return NextResponse.redirect(new URL('/login', req.url));
-    },
+    }
   });
 
   // Create a mock request
   const request = new MockNextRequest(pathname);
-  
+
   // Run the middleware
   const response = await middleware(request);
-  
+
   // If response redirects to login, the route is protected
   return response && response.status === 307 && response.headers.get('location').includes('/login');
 }
 
 // Convert to Vitest tests
 describe('Route Matching Logic', () => {
-  test.each(testCases)('$desc - $url should be $expected ? protected : public', async ({ url, expected, desc }) => {
+  test.each(testCases)('$desc - $url should be $expected ? protected : public', async ({ url, expected, _desc }) => {
     const isProtected = await testRouteProtection(url, testRouteMap);
     expect(isProtected).toBe(expected);
   });

@@ -2,7 +2,7 @@
 
 /**
  * Next Route Guard Compatibility Test Script
- * 
+ *
  * This is a simplified compatibility test that:
  * 1. Creates a minimal structure to test that route-guard works on the given Next.js version
  * 2. Verifies that route map generation works
@@ -10,7 +10,9 @@
  */
 
 const fs = require('fs');
+
 const path = require('path');
+
 const child_process = require('child_process');
 
 // Versions to test if not specified
@@ -19,13 +21,13 @@ const DEFAULT_VERSIONS = ['13.4.0', '14.0.0', '15.0.0'];
 // Parse command-line arguments
 const args = process.argv.slice(2);
 let specificVersion = null;
-let keepTestDirs = false;
+let _keepTestDirs = false;
 
-args.forEach(arg => {
+args.forEach((arg) => {
   if (arg.startsWith('--version=')) {
     specificVersion = arg.split('=')[1];
   } else if (arg === '--keep') {
-    keepTestDirs = true;
+    _keepTestDirs = true;
   }
 });
 
@@ -35,10 +37,10 @@ const versionsToTest = specificVersion ? [specificVersion] : DEFAULT_VERSIONS;
 function runCompatibilityTests() {
   console.log('🧪 Running Next.js compatibility tests for Next Route Guard');
   console.log(`Versions to test: ${versionsToTest.join(', ')}\n`);
-  
+
   let successCount = 0;
   let failCount = 0;
-  
+
   for (const version of versionsToTest) {
     try {
       console.log(`\n🔍 Testing with Next.js ${version}...`);
@@ -51,13 +53,13 @@ function runCompatibilityTests() {
       failCount++;
     }
   }
-  
+
   // Print summary
   console.log('\n📊 Compatibility Test Summary:');
   console.log(`Total versions tested: ${versionsToTest.length}`);
   console.log(`✅ Passed: ${successCount}`);
   console.log(`❌ Failed: ${failCount}`);
-  
+
   if (failCount > 0) {
     process.exit(1);
   }
@@ -76,22 +78,22 @@ function safeExec(command, args, options = {}) {
 function testWithNextVersion(version) {
   // Create test directory in the current directory
   const testDir = path.join(__dirname, 'test-app-v' + version);
-  
+
   // Clean up any existing test directory
   if (fs.existsSync(testDir)) {
     console.log(`Cleaning up existing test directory: ${testDir}`);
     fs.rmSync(testDir, { recursive: true, force: true });
   }
-  
+
   // Create test directory
   fs.mkdirSync(testDir, { recursive: true });
-  
+
   // Create comprehensive App Router structure with various route patterns
   const appDir = path.join(testDir, 'app');
   if (!fs.existsSync(appDir)) {
     fs.mkdirSync(appDir, { recursive: true });
   }
-  
+
   // Add layout.js
   fs.writeFileSync(
     path.join(appDir, 'layout.js'),
@@ -103,7 +105,7 @@ function testWithNextVersion(version) {
   );
 }`
   );
-  
+
   // Create a more complex directory structure with various route patterns
   const routeStructure = {
     // Public routes
@@ -113,7 +115,7 @@ function testWithNextVersion(version) {
     '(public)/products': 'Products Listing',
     '(public)/products/[category]/[id]': 'Product Detail',
     '(public)/help/[[...slug]]': 'Help Page with Optional Catch-All',
-    
+
     // Protected routes
     '(protected)/dashboard': 'Dashboard',
     '(protected)/profile': 'User Profile',
@@ -123,20 +125,20 @@ function testWithNextVersion(version) {
     '(protected)/admin/users/[id]': 'Admin User Detail',
     '(protected)/docs/[...slug]': 'Documentation with Catch-All',
     '(protected)/reports/[[...params]]': 'Reports with Optional Parameters',
-    
+
     // Nested groups
     '(public)/help/(protected)/admin': 'Nested Protected in Public',
-    
+
     // Login page (not in any group)
-    'login': 'Login Page',
-    'api/auth/[...nextauth]': 'NextAuth.js API Route',
+    login: 'Login Page',
+    'api/auth/[...nextauth]': 'NextAuth.js API Route'
   };
-  
+
   // Create all the route directories and files
   for (const [route, pageTitle] of Object.entries(routeStructure)) {
     const routeDir = path.join(appDir, route);
     fs.mkdirSync(routeDir, { recursive: true });
-    
+
     // Create page.js
     fs.writeFileSync(
       path.join(routeDir, 'page.js'),
@@ -146,7 +148,7 @@ function testWithNextVersion(version) {
 `
     );
   }
-  
+
   // Create parallel routes and other advanced patterns
   const advancedRoutes = {
     '(protected)/dashboard/@stats/page.js': `export default function StatsPage() {
@@ -172,7 +174,7 @@ function testWithNextVersion(version) {
 }
 `
   };
-  
+
   // Create advanced route files
   for (const [filePath, content] of Object.entries(advancedRoutes)) {
     const fullPath = path.join(appDir, filePath);
@@ -181,30 +183,34 @@ function testWithNextVersion(version) {
     // Write file
     fs.writeFileSync(fullPath, content);
   }
-  
+
   // Create a package.json
   fs.writeFileSync(
     path.join(testDir, 'package.json'),
-    JSON.stringify({
-      name: `test-next-${version}`,
-      version: '0.1.0',
-      private: true,
-      scripts: {
-        dev: 'next dev',
-        build: 'next build',
-        start: 'next start'
+    JSON.stringify(
+      {
+        name: `test-next-${version}`,
+        version: '0.1.0',
+        private: true,
+        scripts: {
+          dev: 'next dev',
+          build: 'next build',
+          start: 'next start'
+        },
+        dependencies: {
+          next: `${version}`,
+          react: 'latest',
+          'react-dom': 'latest',
+          '@tradecrush/next-route-guard': 'file:../../..'
+        }
       },
-      dependencies: {
-        'next': `^${version}`,
-        'react': 'latest',
-        'react-dom': 'latest',
-        '@tradecrush/next-route-guard': 'file:../../..'
-      }
-    }, null, 2)
+      null,
+      2
+    )
   );
-  
+
   console.log('Created test app structure');
-  
+
   // Create next.config.js file with ESLint and TypeScript errors disabled
   fs.writeFileSync(
     path.join(testDir, 'next.config.js'),
@@ -223,7 +229,7 @@ const nextConfig = {
 module.exports = nextConfig;
 `
   );
-  
+
   // Create middleware.js
   fs.writeFileSync(
     path.join(testDir, 'middleware.js'),
@@ -246,31 +252,37 @@ export const config = {
 };
 `
   );
-  
+
   // Generate the route map
   console.log('Generating route map...');
   // Use the correct path to the generate-routes.js script
-  safeExec('node', [
-    path.resolve(__dirname, '../../scripts/generate-routes.js'),
-    '--app-dir', './app',
-    '--output', './app/route-map.json'
-  ], { cwd: testDir });
-  
+  safeExec(
+    'node',
+    [
+      path.resolve(__dirname, '../../scripts/generate-routes.js'),
+      '--app-dir',
+      './app',
+      '--output',
+      './app/route-map.json'
+    ],
+    { cwd: testDir }
+  );
+
   // Verify route map exists
   const routeMapPath = path.join(testDir, 'app', 'route-map.json');
   if (!fs.existsSync(routeMapPath)) {
     throw new Error(`Route map not generated at expected path: ${routeMapPath}`);
   }
-  
+
   // Display route map
   const routeMap = JSON.parse(fs.readFileSync(routeMapPath, 'utf8'));
   console.log('Generated route map:');
   console.log(`Public routes: ${routeMap.public.length}`);
   console.log(`Protected routes: ${routeMap.protected.length}`);
-  
+
   // Create an integrated test that runs the Next.js app and tests routes via HTTP
   console.log('\nSetting up integrated middleware test...');
-  
+
   // Create an e2e test script that starts the Next.js server and tests routes
   const e2eTestPath = path.join(testDir, 'e2e-test.js');
   const e2eTestContent = `
@@ -368,12 +380,12 @@ runTests();
 `;
 
   fs.writeFileSync(e2eTestPath, e2eTestContent);
-  
+
   // Install http-server for testing
   console.log('Setting up server for e2e tests...');
   try {
     safeExec('npm', ['install', '--save-dev', 'kill-port'], { cwd: testDir });
-    
+
     // Start the tests
     console.log('\nRunning e2e middleware tests...');
     safeExec('node', [e2eTestPath], { cwd: testDir });
@@ -382,61 +394,64 @@ runTests();
     console.error('❌ e2e middleware tests failed:', error);
     throw new Error('e2e middleware tests failed');
   }
-  
+
   // Enhanced verification: Check that the route map content makes sense for our structure
   const routeMapData = JSON.parse(fs.readFileSync(path.join(testDir, 'app', 'route-map.json'), 'utf8'));
   console.log('\nDetailed route map analysis:');
-  
+
   // Verify we have both public and protected routes
   if (!routeMapData.public.length) {
     console.warn('⚠️  Warning: No public routes detected');
   } else {
     console.log(`✓ Public routes detected: ${routeMapData.public.length}`);
   }
-  
+
   if (!routeMapData.protected.length) {
     console.warn('⚠️  Warning: No protected routes detected');
   } else {
     console.log(`✓ Protected routes detected: ${routeMapData.protected.length}`);
   }
-  
+
   // Verify dynamic routes are present
-  const hasDynamicRoutes = routeMapData.public.some(route => route.includes('[')) || 
-                          routeMapData.protected.some(route => route.includes('['));
+  const hasDynamicRoutes =
+    routeMapData.public.some((route) => route.includes('[')) ||
+    routeMapData.protected.some((route) => route.includes('['));
   if (hasDynamicRoutes) {
     console.log('✓ Dynamic routes correctly detected');
   } else {
     console.warn('⚠️  Warning: No dynamic routes detected');
   }
-  
+
   // Verify catch-all routes are present
-  const hasCatchAllRoutes = routeMapData.public.some(route => route.includes('[...')) || 
-                           routeMapData.protected.some(route => route.includes('[...'));
+  const hasCatchAllRoutes =
+    routeMapData.public.some((route) => route.includes('[...')) ||
+    routeMapData.protected.some((route) => route.includes('[...'));
   if (hasCatchAllRoutes) {
     console.log('✓ Catch-all routes correctly detected');
   } else {
     console.warn('⚠️  Warning: No catch-all routes detected');
   }
-  
+
   // Verify optional catch-all routes are present
-  const hasOptionalCatchAllRoutes = routeMapData.public.some(route => route.includes('[[...')) || 
-                                   routeMapData.protected.some(route => route.includes('[[...'));
+  const hasOptionalCatchAllRoutes =
+    routeMapData.public.some((route) => route.includes('[[...')) ||
+    routeMapData.protected.some((route) => route.includes('[[...'));
   if (hasOptionalCatchAllRoutes) {
     console.log('✓ Optional catch-all routes correctly detected');
   } else {
     console.warn('⚠️  Warning: No optional catch-all routes detected');
   }
-  
+
   console.log(`Compatibility test for Next.js ${version} passed!`);
-  
+
   // Clean up test directory unless --keep flag is specified
-  if (!process.argv.includes('--keep')) {
+  if (!_keepTestDirs) {
     console.log(`\nCleaning up test directory: ${testDir}`);
     fs.rmSync(testDir, { recursive: true, force: true });
   } else {
     console.log(`\nKeeping test directory for inspection: ${testDir}`);
   }
-  
+
   return true;
 }
 

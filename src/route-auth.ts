@@ -18,13 +18,13 @@ const DEFAULT_LOGIN_ROUTE = '/login';
 interface RouteNode {
   // Whether this route is protected
   isProtected?: boolean;
-  
+
   // Regular children by segment name
   children: Map<string, RouteNode>;
-  
+
   // Dynamic child node (for [param] segments)
   dynamicChild?: RouteNode;
-  
+
   // Catch-all child (for [...slug] or [[...slug]])
   catchAllChild?: {
     node: RouteNode;
@@ -37,10 +37,10 @@ interface RouteNode {
 /**
  * Creates a Next.js middleware function that enforces route authentication
  * based on the directory structure conventions in the app router.
- * 
+ *
  * This is the main entry point for the runtime middleware that checks if a user
  * is authenticated and handles redirection for protected routes.
- * 
+ *
  * @param options - Configuration options for the middleware
  * @returns A Next.js middleware function
  */
@@ -104,7 +104,7 @@ export function createRouteAuthMiddleware(options: RouteAuthOptions) {
  * Builds a route trie from a route map for efficient path matching
  * This converts the flat route lists into a tree structure for O(k) lookups
  * where k is the depth of the path (number of segments).
- * 
+ *
  * @param routeMap - Map of protected and public routes
  * @returns Root node of the route trie
  */
@@ -113,23 +113,23 @@ function buildRouteTrie(routeMap: RouteMap): RouteNode {
   const root: RouteNode = {
     children: new Map()
   };
-  
+
   // Add protected routes first
   for (const route of routeMap.protected) {
     addRouteToTrie(root, route, true);
   }
-  
+
   // Add public routes (these will override protection status for the same paths)
   for (const route of routeMap.public) {
     addRouteToTrie(root, route, false);
   }
-  
+
   return root;
 }
 
 /**
  * Adds a single route to the trie
- * 
+ *
  * @param root - Root node of the trie
  * @param route - Route path to add
  * @param isProtected - Whether this route is protected
@@ -140,31 +140,32 @@ function addRouteToTrie(root: RouteNode, route: string, isProtected: boolean): v
     root.isProtected = isProtected;
     return;
   }
-  
+
   // Split path into segments
   const segments = route.split('/').filter(Boolean);
   let currentNode = root;
-  
+
   // Find the index of any catch-all segment
-  const catchAllIndex = segments.findIndex(s => 
-    s.startsWith('[...') || s.startsWith('[[...')
-  );
-  
+  const catchAllIndex = segments.findIndex((s) => s.startsWith('[...') || s.startsWith('[[...'));
+
   // Process segments before catch-all normally
-  const segmentsBeforeCatchAll = catchAllIndex === -1 ? 
-    segments : segments.slice(0, catchAllIndex);
-  
+  const segmentsBeforeCatchAll = catchAllIndex === -1 ? segments : segments.slice(0, catchAllIndex);
+
   for (let i = 0; i < segmentsBeforeCatchAll.length; i++) {
     const segment = segmentsBeforeCatchAll[i];
     if (!segment) continue; // Skip empty segments
-    
+
     const isLastSegment = i === segments.length - 1;
-    
+
     // Regular dynamic segment [param]
-    if (segment.startsWith('[') && segment.endsWith(']') && 
-        !segment.startsWith('[...') && !segment.startsWith('[[...')) {
+    if (
+      segment.startsWith('[') &&
+      segment.endsWith(']') &&
+      !segment.startsWith('[...') &&
+      !segment.startsWith('[[...')
+    ) {
       if (!currentNode.dynamicChild) {
-        currentNode.dynamicChild = { 
+        currentNode.dynamicChild = {
           children: new Map(),
           isProtected: isLastSegment ? isProtected : undefined
         };
@@ -172,7 +173,7 @@ function addRouteToTrie(root: RouteNode, route: string, isProtected: boolean): v
         currentNode.dynamicChild.isProtected = isProtected;
       }
       currentNode = currentNode.dynamicChild;
-    } 
+    }
     // Regular segment
     else {
       if (!currentNode.children.has(segment)) {
@@ -192,13 +193,13 @@ function addRouteToTrie(root: RouteNode, route: string, isProtected: boolean): v
       }
     }
   }
-  
+
   // If there's a catch-all segment
   if (catchAllIndex !== -1) {
     const catchAllSegment = segments[catchAllIndex];
     if (catchAllSegment) {
       const isOptional = catchAllSegment.startsWith('[[...');
-      
+
       // Create catch-all node if it doesn't exist
       if (!currentNode.catchAllChild) {
         currentNode.catchAllChild = {
@@ -211,21 +212,21 @@ function addRouteToTrie(root: RouteNode, route: string, isProtected: boolean): v
         };
       }
     }
-    
+
     // If there are segments after the catch-all
     if (catchAllIndex < segments.length - 1 && currentNode.catchAllChild && currentNode.catchAllChild.restSegments) {
       const afterCatchAll = segments.slice(catchAllIndex + 1);
       let restSegments = currentNode.catchAllChild.restSegments;
-      
+
       // Add nodes for segments after catch-all
       let restNode: RouteNode | undefined;
-      
+
       for (let i = 0; i < afterCatchAll.length; i++) {
         const segment = afterCatchAll[i];
         if (!segment) continue; // Skip empty segments
-        
+
         const isLastSegment = i === afterCatchAll.length - 1;
-        
+
         if (!restSegments.has(segment)) {
           restSegments.set(segment, {
             children: new Map(),
@@ -237,15 +238,15 @@ function addRouteToTrie(root: RouteNode, route: string, isProtected: boolean): v
             segmentNode.isProtected = isProtected;
           }
         }
-        
+
         restNode = restSegments.get(segment);
-        
+
         // If not the last segment and we have a valid node, prepare for more
         if (!isLastSegment && restNode) {
           restSegments = restNode.children;
         }
       }
-    } 
+    }
     // If catch-all is the last segment
     else if (currentNode.catchAllChild) {
       currentNode.catchAllChild.node.isProtected = isProtected;
@@ -255,7 +256,7 @@ function addRouteToTrie(root: RouteNode, route: string, isProtected: boolean): v
 
 /**
  * Match a path against the route trie to determine if it's protected
- * 
+ *
  * @param path - URL path to check
  * @param routeTrie - Route trie for efficient matching
  * @param defaultProtected - Default protection status
@@ -267,25 +268,25 @@ function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean
   if (cleanPath.endsWith('/') && cleanPath.length > 1) {
     cleanPath = cleanPath.slice(0, -1);
   }
-  
+
   // Special case for root path
   if (cleanPath === '/') {
     return routeTrie.isProtected ?? defaultProtected;
   }
-  
+
   // Split path into segments
   const segments = cleanPath.split('/').filter(Boolean);
   let isProtected = defaultProtected;
-  
+
   // Start at the root node (which may have its own protection status)
   let currentNode = routeTrie;
   if (currentNode.isProtected !== undefined) {
     isProtected = currentNode.isProtected;
   }
-  
+
   // Match path segments
   let matchIndex = 0;
-  
+
   // Special case for segments like `/admin` that match `/admin/[[...slug]]`
   // When we have a route like /admin/[[...slug]], the trie has structure:
   // root -> 'admin' -> catchAllChild with isOptional=true
@@ -299,11 +300,11 @@ function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean
       }
     }
   }
-  
+
   while (matchIndex < segments.length) {
     const segment = segments[matchIndex];
     let matched = false;
-    
+
     // 1. Try exact match first
     if (segment && currentNode.children.has(segment)) {
       const nextNode = currentNode.children.get(segment);
@@ -325,7 +326,7 @@ function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean
       if (!currentNode.catchAllChild.isOptional && matchIndex >= segments.length) {
         break;
       }
-      
+
       // For optional catch-all matching base paths (like /content)
       if (currentNode.catchAllChild.isOptional && matchIndex >= segments.length) {
         // For base path matching with optional catch-all, we've found a match
@@ -334,31 +335,31 @@ function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean
         }
         return isProtected;
       }
-      
+
       // Set protection status from catch-all node
       if (currentNode.catchAllChild.node.isProtected !== undefined) {
         isProtected = currentNode.catchAllChild.node.isProtected;
       }
-      
+
       // Check for rest segments
       if (currentNode.catchAllChild.restSegments && currentNode.catchAllChild.restSegments.size > 0) {
         // Try to find a matching "rest segment" among remaining URL parts
         let restMatched = false;
-        let remainingSegments = segments.slice(matchIndex);
-        
+        const remainingSegments = segments.slice(matchIndex);
+
         // Try each remaining segment as a potential start of a rest path
         for (let i = 0; i < remainingSegments.length; i++) {
           const potentialRestStart = remainingSegments[i];
           if (!potentialRestStart) continue;
-          
+
           if (currentNode.catchAllChild.restSegments.has(potentialRestStart)) {
             // We have a potential rest segment match
             const restPath = remainingSegments.slice(i);
             const restStartNode = currentNode.catchAllChild.restSegments.get(potentialRestStart);
             if (!restStartNode) continue;
-            
+
             let currentRestNode = restStartNode;
-            
+
             if (restPath.length === 1) {
               // Single segment rest path, we have a match
               if (currentRestNode.isProtected !== undefined) {
@@ -367,13 +368,13 @@ function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean
               restMatched = true;
               break;
             }
-            
+
             // Multi-segment rest path, need to check further segments
             let restMatchComplete = true;
             for (let j = 1; j < restPath.length; j++) {
               const nextSegment = restPath[j];
               if (!nextSegment) continue;
-              
+
               if (currentRestNode.children.has(nextSegment)) {
                 const nextNode = currentRestNode.children.get(nextSegment);
                 if (nextNode) {
@@ -391,35 +392,35 @@ function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean
                 break;
               }
             }
-            
+
             if (restMatchComplete) {
               restMatched = true;
               break;
             }
           }
         }
-        
+
         // If we matched a rest segment, we're done
         if (restMatched) {
           return isProtected;
         }
       }
-      
+
       // If no rest segments matched, the catch-all consumes all remaining segments
       return isProtected;
     }
-    
+
     // Update protection status
     if (matched && currentNode.isProtected !== undefined) {
       isProtected = currentNode.isProtected;
     }
-    
+
     // If no match found, we're done
     if (!matched) {
       break;
     }
   }
-  
+
   // We've either matched all segments or run out of matches
   return isProtected;
 }

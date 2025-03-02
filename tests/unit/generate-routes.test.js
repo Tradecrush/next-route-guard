@@ -132,7 +132,7 @@ describe('Basic route testing', () => {
   test('should detect various file extensions', () => {
     // Test with different file extensions
     const extensions = ['tsx', 'jsx', 'ts'];
-    
+
     for (const ext of extensions) {
       const testDir = path.join(TEST_APP_DIR, '(protected)', `test-${ext}`);
       fs.mkdirSync(testDir, { recursive: true });

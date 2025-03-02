@@ -1,11 +1,11 @@
 /**
  * Next Route Guard - Convention-based route authentication middleware for Next.js
- * 
+ *
  * This package provides a simple way to protect routes in Next.js applications
  * based on directory naming conventions. It uses Next.js Edge middleware to
  * perform authentication checks at runtime based on a route map generated
  * during build time.
- * 
+ *
  * @packageDocumentation
  */
 
@@ -31,14 +31,14 @@ export type MiddlewareFactory = (middleware: Middleware) => Middleware;
 
 /**
  * Chain multiple middleware factories together.
- * 
+ *
  * This allows you to compose multiple middleware functions into a single middleware pipeline.
  * Each middleware in the chain can choose to call the next middleware or short-circuit the chain.
  *
  * @param functions - Array of middleware factories to chain together
  * @param index - Current index in the chain (used internally for recursion)
  * @returns A middleware function representing the entire chain
- * 
+ *
  * @example
  * ```ts
  * // Create middleware factories
@@ -70,7 +70,7 @@ export function chain(functions: MiddlewareFactory[], index = 0): Middleware {
   if (current) {
     // Get the next middleware in the chain
     const next = chain(functions, index + 1);
-    
+
     // Apply the current middleware factory to the next middleware
     return current(next);
   }
@@ -82,10 +82,10 @@ export function chain(functions: MiddlewareFactory[], index = 0): Middleware {
 
 /**
  * Generate a route map based on the Next.js app directory structure.
- * 
+ *
  * This function analyzes the directory structure to identify routes and their protection status.
  * It's used by the CLI tools to generate the route map at build time or during development.
- * 
+ *
  * Routes are classified as protected or public based on their directory context:
  * - Routes inside a "(public)" directory group are marked as public
  * - Routes inside a "(protected)" directory group are marked as protected
@@ -110,7 +110,9 @@ export function generateRouteMap(
   try {
     // We need to dynamically import these modules since they're not available in Edge runtime
     // This function is only intended to be used during build time or development
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require('fs');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const path = require('path');
 
     // Initialize the route map
@@ -121,7 +123,7 @@ export function generateRouteMap(
 
     /**
      * Recursively scans the directory structure to identify routes
-     * 
+     *
      * @param dirPath - Current directory path being scanned
      * @param segments - URL segments collected so far (for constructing the route path)
      * @param groups - Route groups encountered in the current path

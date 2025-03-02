@@ -1,5 +1,7 @@
 #!/usr/bin/env node
+
 const { execSync } = require('child_process');
+
 const path = require('path');
 
 console.log('🧪 Running all next-route-guard tests...\n');
@@ -16,9 +18,9 @@ try {
 // Run unit tests
 console.log('\n=== Running unit tests ===');
 try {
-  execSync('npm run test:unit', { 
-    stdio: 'inherit', 
-    cwd: path.resolve(__dirname, '..') 
+  execSync('npm run test:unit', {
+    stdio: 'inherit',
+    cwd: path.resolve(__dirname, '..')
   });
   console.log('\n✅ Unit tests passed!');
 } catch (error) {
@@ -32,9 +34,9 @@ const nextVersions = ['13.4.0', '14.0.0', '15.0.0'];
 for (const version of nextVersions) {
   console.log(`\n=== Running compatibility tests for Next.js ${version} ===`);
   try {
-    execSync(`npm run test:compatibility -- --version=${version}`, { 
-      stdio: 'inherit', 
-      cwd: path.resolve(__dirname, '..') 
+    execSync(`npm run test:compatibility -- --version=${version}`, {
+      stdio: 'inherit',
+      cwd: path.resolve(__dirname, '..')
     });
     console.log(`\n✅ Next.js ${version} compatibility tests passed!`);
   } catch (error) {

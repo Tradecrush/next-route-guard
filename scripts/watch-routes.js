@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 /**
  * Next Route Guard - Route Map Watcher
- * 
+ *
  * This CLI tool watches your Next.js app directory for changes and automatically
  * updates the route map when files or directories are added, modified, or removed.
- * 
+ *
  * This is intended for development use to ensure your route map stays up-to-date
  * as you add or modify routes in your app.
  */
+
 const fs = require('fs');
+
 const path = require('path');
+
 const chokidar = require('chokidar');
+
 const { generateRouteMap } = require('../dist');
 
 // Parse command line arguments
@@ -90,7 +94,7 @@ generateAndSaveRouteMap();
 // Watch for changes in the app directory
 console.log(`\n@tradecrush/next-route-guard: Watching for changes in ${resolvedAppDir}...`);
 const watcher = chokidar.watch(resolvedAppDir, {
-  ignored: /(^|[\/\\])\../, // ignore dotfiles
+  ignored: /(^|[/\\])\../, // ignore dotfiles
   persistent: true,
   ignoreInitial: true
 });

@@ -6,6 +6,6 @@ export default defineConfig({
     environment: 'node',
     include: ['./tests/unit/**/*.test.js'],
     exclude: ['**/node_modules/**', '**/dist/**'],
-    testTimeout: 20000,
-  },
+    testTimeout: 20000
+  }
 });
