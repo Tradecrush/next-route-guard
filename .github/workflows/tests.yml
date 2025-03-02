@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        node: [18, 20]
+        node: [18, 20, 22]
       fail-fast: false  # Continue with other jobs if one fails
 
     steps:
@@ -24,11 +24,16 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node }}
-        cache: 'npm'
-        cache-dependency-path: package-lock.json
-      env:
-        # Set a unique cache path for each Node version
-        npm_config_cache: ~/.npm-cache-${{ matrix.node }}
+        # Don't use built-in caching
+        
+    # Create custom cache with explicit key
+    - name: Cache npm dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: npm-deps-${{ runner.os }}-node${{ matrix.node }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          npm-deps-${{ runner.os }}-node${{ matrix.node }}-
     
     - name: Install dependencies
       run: npm ci
