@@ -40,7 +40,7 @@ A convention-based route authentication middleware for Next.js applications with
 - **🔄 Inheritance**: Child routes inherit protection status from parent routes
 - **🔀 Dynamic Routes**: Full support for Next.js dynamic routes, catch-all routes, and optional segments
 - **⚙️ Zero Runtime Overhead**: Route protection rules are compiled at build time
-- **🚀 Hyper-Optimized**: Uses trie-based algorithms that are 67× faster than linear search
+- **🚀 Hyper-Optimized**: Uses trie-based algorithms that are 90× faster than linear search
 - **🛠️ Flexible Configuration**: Customize authentication logic, redirection behavior, and more
 - **👀 Watch Mode**: Development tool that updates route maps as you add or remove routes
 - **✅ Fully Compatible**: Tested with Next.js 13.4.0, 14.0.0 and 15.0.0
