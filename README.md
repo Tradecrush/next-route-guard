@@ -6,9 +6,7 @@
 > - `createRouteAuthMiddleware` → `createRouteGuardMiddleware`
 > - `RouteAuthOptions` → `RouteGuardOptions`
 >
-> ⚡ **OPTIMIZED**: Trie-based route matching (67× faster), improved optional catch-all route handling, and complete Next.js version compatibility!
->
-> 🛠 **v0.2.3-1**: Improved Node 20 compatibility and CI build reliability
+> ⚡ **OPTIMIZED**: Trie-based route matching (90× faster), improved optional catch-all route handling, and complete Next.js version compatibility!
 
 A convention-based route authentication middleware for Next.js applications with App Router (Next.js 13.4.0 and up), fully tested and compatible with all major Next.js versions.
 

@@ -1,6 +1,6 @@
 {
   "name": "@tradecrush/next-route-guard",
-  "version": "0.2.3-1",
+  "version": "0.2.3-2",
   "private": false,
   "description": "Convention-based route authentication middleware for Next.js applications",
   "main": "./dist/index.js",

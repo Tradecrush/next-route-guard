@@ -12,9 +12,6 @@
 export { createRouteGuardMiddleware } from './route-guard';
 export type { RouteGuardOptions, NextMiddleware, RouteMap } from './types';
 
-// For backward compatibility
-export { createRouteGuardMiddleware as createRouteAuthMiddleware } from './route-guard';
-
 import type { NextFetchEvent } from 'next/server';
 
 /**
