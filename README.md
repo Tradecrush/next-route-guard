@@ -1,5 +1,7 @@
 # @tradecrush/next-route-guard
 
+> 🚀 **NEW v0.2.0**: Now with trie-based route matching (67× faster) and improved optional catch-all route handling!
+
 A convention-based route authentication middleware for Next.js applications with App Router.
 
 [![npm version](https://img.shields.io/npm/v/@tradecrush/next-route-guard.svg)](https://www.npmjs.com/package/@tradecrush/next-route-guard)
