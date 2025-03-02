@@ -42,6 +42,7 @@ const complexRouteMap = {
   public: [
     '/data/[...path]',                       // Required catch-all (public)
     '/content/[[...slug]]',                  // Optional catch-all (public)
+    '/content',                               // Base path for public optional catch-all
     '/docs/[...slug]/preview',               // Rest segment after catch-all (public)
     '/docs/public/info',                     // Static path (public)
     '/products/[id]/preview',                // Rest segment after dynamic param (public)

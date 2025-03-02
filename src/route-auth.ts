@@ -311,6 +311,15 @@ function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean
         break;
       }
       
+      // For optional catch-all matching base paths (like /content)
+      if (currentNode.catchAllChild.isOptional && matchIndex >= segments.length) {
+        // For base path matching with optional catch-all, we've found a match
+        if (currentNode.catchAllChild.node.isProtected !== undefined) {
+          isProtected = currentNode.catchAllChild.node.isProtected;
+        }
+        return isProtected;
+      }
+      
       // Set protection status from catch-all node
       if (currentNode.catchAllChild.node.isProtected !== undefined) {
         isProtected = currentNode.catchAllChild.node.isProtected;
