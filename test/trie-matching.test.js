@@ -230,7 +230,7 @@ async function runPerformanceTest() {
   console.log('\n--- Testing Trie-Based Implementation ---');
   let totalTime = 0;
   let resultDetails = {};
-  const runs = 100;
+  const runs = 1000;
   
   for (const url of testUrls) {
     console.log(`Testing match for: ${url}`);
