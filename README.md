@@ -178,31 +178,84 @@ Next Route Guard uses a specialized trie (prefix tree) data structure for route 
 
 #### How the Route Trie Works
 
-The route trie transforms the flat route lists into a tree structure that matches the URL hierarchy:
+The route trie transforms your app directory structure into a tree representation that efficiently handles route protection. Let's look at a typical Next.js app directory:
+
+```
+app/
+├── (public)/                          # Public routes group
+│   ├── about/
+│   │   └── page.tsx                   # /about
+│   ├── products/
+│   │   ├── page.tsx                   # /products
+│   │   └── [id]/
+│   │       ├── page.tsx               # /products/[id]
+│   │       ├── reviews/
+│   │       │   └── page.tsx           # /products/[id]/reviews
+│   │       └── (protected)/           # Nested protected group inside public
+│   │           └── edit/
+│   │               └── page.tsx       # /products/[id]/edit (protected)
+│   └── help/
+│       ├── page.tsx                   # /help
+│       └── (protected)/               # Nested protected group
+│           └── admin/
+│               └── page.tsx           # /help/admin (protected)
+├── (protected)/                       # Protected routes group
+│   ├── dashboard/
+│   │   ├── page.tsx                   # /dashboard
+│   │   ├── @stats/                    # Parallel route
+│   │   │   └── page.tsx               # /dashboard/@stats
+│   │   └── settings/
+│   │       └── page.tsx               # /dashboard/settings
+│   ├── docs/
+│   │   ├── page.tsx                   # /docs
+│   │   ├── [...slug]/                 # Required catch-all
+│   │   │   └── page.tsx               # /docs/[...slug]
+│   │   └── (public)/                  # Nested public group inside protected
+│   │       └── preview/
+│   │           └── page.tsx           # /docs/preview (public)
+│   └── admin/
+│       ├── page.tsx                   # /admin (protected)
+│       └── [[...slug]]/               # Optional catch-all (protects all subpaths)
+│           └── page.tsx               # /admin/settings, /admin/users, etc.
+└── layout.tsx
+```
+
+This directory structure is converted to the following route trie:
 
 ```
 / (root)
-├── about (public)
-├── dashboard (protected)
-│   └── @stats (protected) - parallel route
-├── products 
-│   ├── [id] (dynamic - public)
-│   │   └── preview (public)
-│   └── [category] (dynamic)
-│       └── [id] (dynamic - protected)
-└── docs (protected)
-    └── [...slug] (catch-all)
-        ├── edit (protected)
-        └── preview (public)
+├── about (public)                     # From (public)/about
+├── products (public)                  # From (public)/products
+│   └── [id] (dynamic - public)        # From (public)/products/[id]
+│       ├── reviews (public)           # From (public)/products/[id]/reviews
+│       └── edit (protected)           # From (public)/products/[id]/(protected)/edit
+├── help (public)                      # From (public)/help
+│   └── admin (protected)              # From (public)/help/(protected)/admin
+├── dashboard (protected)              # From (protected)/dashboard
+│   ├── @stats (protected)             # From (protected)/dashboard/@stats
+│   └── settings (protected)           # From (protected)/dashboard/settings
+├── docs (protected)                   # From (protected)/docs
+│   ├── [...slug] (protected)          # From (protected)/docs/[...slug]
+│   └── preview (public)               # From (protected)/docs/(public)/preview
+└── admin (protected)                  # From (protected)/admin
+    └── [[...slug]] (protected)        # From (protected)/admin/[[...slug]]
 ```
 
 When a request arrives:
-1. The URL is split into segments
+1. The URL is split into segments (e.g., `/docs/api/auth` → `["docs", "api", "auth"]`)
 2. The trie is traversed segment-by-segment, matching:
    - Exact matches first (highest priority)
-   - Dynamic parameters next
-   - Catch-all segments as needed
-3. Protection status is determined from the final matched node or inherited from parent nodes
+   - Dynamic parameters next (e.g., `[id]`)
+   - Catch-all segments as needed (e.g., `[...slug]`, `[[...optionalPath]]`)
+3. Protection status is determined from the matched node or parent nodes
+   - `/docs/api` matches the `[...slug]` catch-all → protected
+   - `/docs/preview` matches an exact path with custom protection → public
+   - `/products/123/edit` has a nested protection override → protected
+   - `/help/admin` has a nested protection override → protected
+   - `/admin/users` matches the optional catch-all → protected
+   - `/admin` is protected as the base path for the catch-all
+   - `/dashboard/profile` doesn't exist but falls under protected parent → protected
+   - `/about/team` doesn't exist but falls under public parent → public
 
 This approach provides orders of magnitude better performance than a linear search through route lists, especially for applications with many routes or complex routing patterns.
 
