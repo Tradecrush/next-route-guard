@@ -162,15 +162,15 @@ Performance measurements with 1400 routes in the route map:
 
 ```
 Routes: 1400
-Average time per request: 0.004ms
+Average time per request: 0.003ms
 
 Test path                                 | Time per request
 ------------------------------------------|----------------
-/public/page-250                          | 0.005ms
-/protected/page-499                       | 0.006ms
-/public/dynamic-50/12345                  | 0.003ms
-/protected/catch-25/a/b/c/d/e/f/g/h/i/j   | 0.005ms
-/protected/catch-49/a/b/c/edit            | 0.003ms
+/public/page-250                          | 0.002ms
+/protected/page-499                       | 0.004ms
+/public/dynamic-50/12345                  | 0.002ms
+/protected/catch-25/a/b/c/d/e/f/g/h/i/j   | 0.004ms
+/protected/catch-49/a/b/c/edit            | 0.002ms
 /unknown/path/not/found                   | 0.003ms
 ```
 
@@ -183,11 +183,11 @@ Comparing to the previous linear search implementation (v0.1.4):
 | Implementation | Avg time/request | Speedup |
 |----------------|------------------|---------|
 | Linear search  | 0.271ms          | 1×      |
-| Trie-based     | 0.004ms          | 67.75×  |
+| Trie-based     | 0.003ms          | 90.3×   |
 
-The trie-based implementation is **67.75× faster** on average, with particular improvements for:
-- Complex paths with many segments (90× faster for catch-all routes)
-- Non-existent routes (387× faster)
+The trie-based implementation is **90.3× faster** on average, with particular improvements for:
+- Complex paths with many segments (43.8× faster for catch-all routes with `/protected/catch-25/a/b/c/d/e/f/g/h/i/j` going from 0.175ms to 0.004ms)
+- Non-existent routes (387× faster with `/unknown/path/not/found` going from 1.162ms to 0.003ms)
 
 ### Route Trie Optimization
 
