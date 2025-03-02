@@ -13,6 +13,7 @@ A convention-based route authentication middleware for Next.js applications with
 - **🔄 Inheritance**: Child routes inherit protection status from parent routes
 - **🔀 Dynamic Routes**: Full support for Next.js dynamic routes, catch-all routes, and optional segments
 - **⚙️ Zero Runtime Overhead**: Route protection rules are compiled at build time
+- **🚀 Route Matching**: Handles dynamic routes, optional catch-all routes, and complex patterns
 - **🛠️ Flexible Configuration**: Customize authentication logic, redirection behavior, and more
 - **👀 Watch Mode**: Development tool that updates route maps as you add or remove routes
 
@@ -115,9 +116,30 @@ During your build process, the `next-route-guard-generate` command:
 
 The middleware:
 - Uses the generated route map to check if a requested path is protected
+- Performs efficient matching for URLs against route patterns
 - Checks authentication status for protected routes
 - Redirects unauthenticated users to login (or your custom logic)
 - Allows direct access to public routes
+
+### Performance Benchmarks
+
+Current performance measurements with 1400 routes in the route map:
+
+```
+Routes: 1400
+Average time per request: 0.271ms
+
+Test path                                 | Time per request
+------------------------------------------|----------------
+/public/page-250                          | 0.007ms
+/protected/page-499                       | 0.011ms
+/public/dynamic-50/12345                  | 0.077ms
+/protected/catch-25/a/b/c/d/e/f/g/h/i/j   | 0.175ms
+/protected/catch-49/a/b/c/edit            | 0.193ms
+/unknown/path/not/found                   | 1.162ms
+```
+
+These benchmarks were run on Node.js v22.14.0 on a MacBook Pro (M3 Max), with 1000 requests per path.
 
 ## Route Protection Rules
 

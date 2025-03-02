@@ -87,7 +87,7 @@ async function runPerformanceTest() {
   // Run performance test
   let totalTime = 0;
   let resultDetails = {};
-  const runs = 100;
+  const runs = 1000;
   
   for (const url of testUrls) {
     console.log(`Testing match for: ${url}`);
