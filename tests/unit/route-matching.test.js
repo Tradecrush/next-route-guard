@@ -1,8 +1,8 @@
 import { describe, test, expect } from 'vitest';
 import { NextResponse } from 'next/server';
-import { 
-  buildPackageBeforeTests, 
-  setupTestEnvironment, 
+import {
+  buildPackageBeforeTests,
+  setupTestEnvironment,
   MockNextRequest,
   testRouteProtection,
   setupNextResponseMocks
@@ -198,24 +198,24 @@ describe('Route Matching Tests', () => {
       }
     );
   });
-  
+
   describe('Error Handling', () => {
     test('should handle empty route map', async () => {
       const emptyRouteMap = {
         public: [],
         protected: []
       };
-      
+
       const middleware = routeGuard.createRouteGuardMiddleware({
         isAuthenticated: () => false,
         routeMap: emptyRouteMap,
         onUnauthenticated: (req) => NextResponse.redirect(new URL('/login', req.url))
       });
-      
+
       // Default behavior should apply (defaultProtected: true)
       const request = new MockNextRequest('/some/path');
       const response = await middleware(request);
-      
+
       // Should be protected by default
       expect(response.headers.get('location')).toContain('/login');
     });
@@ -225,14 +225,14 @@ describe('Route Matching Tests', () => {
         public: ['/about'],
         protected: ['/dashboard']
       };
-      
+
       const middleware = routeGuard.createRouteGuardMiddleware({
         isAuthenticated: () => false,
         routeMap,
         onUnauthenticated: (req) => NextResponse.redirect(new URL('/login', req.url)),
         excludeUrls: ['/api/(.*)', '/static/(.*)', '/health']
       });
-      
+
       // Test each excluded URL pattern
       const excludedRequests = [
         new MockNextRequest('/api/users'),
@@ -240,18 +240,18 @@ describe('Route Matching Tests', () => {
         new MockNextRequest('/static/images/logo.png'),
         new MockNextRequest('/health')
       ];
-      
+
       for (const request of excludedRequests) {
         const response = await middleware(request);
         // Excluded routes get NextResponse.next(), not null
         expect(response).not.toBeNull();
       }
-      
+
       // Test protected route
       const protectedRequest = new MockNextRequest('/dashboard');
       const protectedResponse = await middleware(protectedRequest);
       expect(protectedResponse.headers.get('location')).toContain('/login');
-      
+
       // Test public route
       const publicRequest = new MockNextRequest('/about');
       const publicResponse = await middleware(publicRequest);

@@ -1,7 +1,14 @@
-import { describe, test, expect, beforeAll, afterAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { cleanTestDirectory, buildPackageBeforeTests, setupTestEnvironment } from './test-helpers';
+
+// Ensure package is built before running tests
+buildPackageBeforeTests();
+
+// Setup test environment (cleanup before tests and after all)
+setupTestEnvironment();
 
 /**
  * Test file for the next-route-guard generate-routes.js script
@@ -11,14 +18,6 @@ import { execSync } from 'child_process';
 const TEST_APP_DIR = path.resolve(__dirname, 'test-app');
 const TEST_OUTPUT_FILE = path.resolve(__dirname, 'test-app/route-map.json');
 const SCRIPT_PATH = path.resolve(__dirname, '../../scripts/generate-routes.js');
-
-// Setup - clean up any previous test files
-function cleanTestDirectory() {
-  if (fs.existsSync(TEST_APP_DIR)) {
-    fs.rmSync(TEST_APP_DIR, { recursive: true, force: true });
-  }
-  fs.mkdirSync(TEST_APP_DIR, { recursive: true });
-}
 
 // Helper function to create a page file
 function createPageFile(dirPath, extension = 'js') {
@@ -30,128 +29,166 @@ function createPageFile(dirPath, extension = 'js') {
 
 // Helper to create test app structure
 function createTestAppStructure() {
-  // Create basic routes
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(public)'), { recursive: true });
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)'), { recursive: true });
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)', 'dashboard'), { recursive: true });
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(public)', 'about'), { recursive: true });
+  try {
+    // Create basic routes
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(public)'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)', 'dashboard'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(public)', 'about'), { recursive: true });
 
-  // Create dynamic route [id]
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)', 'users', '[id]'), { recursive: true });
+    // Create dynamic route [id]
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)', 'users', '[id]'), { recursive: true });
 
-  // Create catch-all route [...slug]
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(public)', 'blog', '[...slug]'), { recursive: true });
+    // Create catch-all route [...slug]
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(public)', 'blog', '[...slug]'), { recursive: true });
 
-  // Create optional catch-all route [[...catchAll]]
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)', 'docs', '[[...catchAll]]'), { recursive: true });
+    // Create optional catch-all route [[...catchAll]]
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)', 'docs', '[[...catchAll]]'), { recursive: true });
 
-  // Create nested dynamic routes
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)', 'products', '[category]', '[id]'), { recursive: true });
+    // Create nested dynamic routes
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)', 'products', '[category]', '[id]'), { recursive: true });
 
-  // Create mixed protection levels
-  fs.mkdirSync(path.join(TEST_APP_DIR, 'settings'), { recursive: true });
-  fs.mkdirSync(path.join(TEST_APP_DIR, 'settings', '(public)'), { recursive: true });
-  fs.mkdirSync(path.join(TEST_APP_DIR, 'settings', '(public)', 'profile'), { recursive: true });
-  fs.mkdirSync(path.join(TEST_APP_DIR, 'settings', '(protected)'), { recursive: true });
-  fs.mkdirSync(path.join(TEST_APP_DIR, 'settings', '(protected)', 'billing'), { recursive: true });
+    // Create mixed protection levels
+    fs.mkdirSync(path.join(TEST_APP_DIR, 'settings'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_APP_DIR, 'settings', '(public)'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_APP_DIR, 'settings', '(public)', 'profile'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_APP_DIR, 'settings', '(protected)'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_APP_DIR, 'settings', '(protected)', 'billing'), { recursive: true });
 
-  // Root page is outside any group, so it inherits default protection (protected)
-  createPageFile(path.join(TEST_APP_DIR));
-  createPageFile(path.join(TEST_APP_DIR, '(public)', 'about'));
-  createPageFile(path.join(TEST_APP_DIR, '(protected)', 'dashboard'));
-  createPageFile(path.join(TEST_APP_DIR, '(protected)', 'users', '[id]'));
-  createPageFile(path.join(TEST_APP_DIR, '(public)', 'blog', '[...slug]'));
-  createPageFile(path.join(TEST_APP_DIR, '(protected)', 'docs', '[[...catchAll]]'));
-  createPageFile(path.join(TEST_APP_DIR, '(protected)', 'products', '[category]', '[id]'));
-  createPageFile(path.join(TEST_APP_DIR, 'settings', '(public)', 'profile'));
-  createPageFile(path.join(TEST_APP_DIR, 'settings', '(protected)', 'billing'));
+    // Root page is outside any group, so it inherits default protection (protected)
+    createPageFile(path.join(TEST_APP_DIR));
+    createPageFile(path.join(TEST_APP_DIR, '(public)', 'about'));
+    createPageFile(path.join(TEST_APP_DIR, '(protected)', 'dashboard'));
+    createPageFile(path.join(TEST_APP_DIR, '(protected)', 'users', '[id]'));
+    createPageFile(path.join(TEST_APP_DIR, '(public)', 'blog', '[...slug]'));
+    createPageFile(path.join(TEST_APP_DIR, '(protected)', 'docs', '[[...catchAll]]'));
+    createPageFile(path.join(TEST_APP_DIR, '(protected)', 'products', '[category]', '[id]'));
+    createPageFile(path.join(TEST_APP_DIR, 'settings', '(public)', 'profile'));
+    createPageFile(path.join(TEST_APP_DIR, 'settings', '(protected)', 'billing'));
+
+    // Verify crucial structure elements
+    const aboutPagePath = path.join(TEST_APP_DIR, '(public)', 'about', 'page.js');
+    if (!fs.existsSync(aboutPagePath)) {
+      throw new Error(`Critical test file not created: ${aboutPagePath}`);
+    }
+  } catch (error) {
+    console.error('Error in createTestAppStructure:', error);
+    throw error;
+  }
 }
 
 // Run the generate-routes script
 function runGenerateRoutes() {
   try {
-    // Use pipe instead of inherit for better CI compatibility
-    const output = execSync(
-      `node ${SCRIPT_PATH} --app-dir "${TEST_APP_DIR}" --output "${TEST_OUTPUT_FILE}"`, 
-      { encoding: 'utf8' }
-    );
-    console.log('Script output:', output);
-    
-    return JSON.parse(fs.readFileSync(TEST_OUTPUT_FILE, 'utf8'));
-  } catch (error) {
-    console.error('Error running generate-routes:', error);
-    if (error.stdout) console.error('Script stdout:', error.stdout);
-    if (error.stderr) console.error('Script stderr:', error.stderr);
-    
-    // Fallback for Node 20 CI environments: Try using direct route map generation
-    console.log('Attempting direct route map generation as fallback...');
+    // Try direct route map generation first for Node 20 compatibility
     try {
       // Generate route map using the built-in function from the project
       const { generateRouteMap } = require('../../dist/index.js');
-      const { routeMap } = generateRouteMap(TEST_APP_DIR, ['(public)'], ['(protected)']);
-      
+
+      const result = generateRouteMap(TEST_APP_DIR, ['(public)'], ['(protected)']);
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      const { routeMap } = result;
+
       // Write to output file
       fs.writeFileSync(TEST_OUTPUT_FILE, JSON.stringify(routeMap, null, 2));
-      
+
       return routeMap;
-    } catch (fallbackError) {
-      console.error('Fallback attempt also failed:', fallbackError);
-      throw error; // Throw the original error
+    } catch (directError) {
+      // Fall back to using the script
+      const output = execSync(`node ${SCRIPT_PATH} --app-dir "${TEST_APP_DIR}" --output "${TEST_OUTPUT_FILE}"`, {
+        encoding: 'utf8'
+      });
+      console.log('Script output:', output);
+
+      return JSON.parse(fs.readFileSync(TEST_OUTPUT_FILE, 'utf8'));
     }
+  } catch (error) {
+    console.error('Error generating route map:', error);
+    if (error.stdout) console.error('Script stdout:', error.stdout);
+    if (error.stderr) console.error('Script stderr:', error.stderr);
+    throw error;
   }
 }
 
 describe('Basic route testing', () => {
-  beforeEach(() => {
-    // Clean up and create test app structure before each test
-    cleanTestDirectory();
-    createTestAppStructure();
-  });
+  // We're not using beforeEach hooks from setupTestEnvironment since this test
+  // has specific setup requirements, so we need to manually handle cleanup
 
   afterAll(() => {
-    // Remove test directory completely when done
-    if (fs.existsSync(TEST_APP_DIR)) {
-      fs.rmSync(TEST_APP_DIR, { recursive: true, force: true });
-    }
+    // Use helper for cleanup when tests are done
+    cleanTestDirectory(TEST_APP_DIR);
   });
 
   test('should generate the correct basic route map', () => {
-    const routeMap = runGenerateRoutes();
+    try {
+      // Setup for this specific test
+      if (fs.existsSync(TEST_APP_DIR)) {
+        fs.rmSync(TEST_APP_DIR, { recursive: true, force: true });
+      }
+      fs.mkdirSync(TEST_APP_DIR, { recursive: true });
 
-    // Check public routes
-    const expectedPublicRoutes = ['/about', '/blog/[...slug]', '/settings/profile'];
+      // Create test app structure
+      createTestAppStructure();
 
-    // Check protected routes
-    const expectedProtectedRoutes = [
-      '/', // Root route is protected by default since it's not in a (public) group
-      '/dashboard',
-      '/users/[id]',
-      '/docs/[[...catchAll]]',
-      '/products/[category]/[id]',
-      '/settings/billing'
-    ];
+      // Run generate routes script
+      const routeMap = runGenerateRoutes();
 
-    // Verify all expected routes are present
-    for (const route of expectedPublicRoutes) {
-      expect(routeMap.public).toContain(route);
+      // Check public routes
+      const expectedPublicRoutes = ['/about', '/blog/[...slug]', '/settings/profile'];
+
+      // Check protected routes
+      const expectedProtectedRoutes = [
+        '/', // Root route is protected by default since it's not in a (public) group
+        '/dashboard',
+        '/users/[id]',
+        '/docs/[[...catchAll]]',
+        '/products/[category]/[id]',
+        '/settings/billing'
+      ];
+
+      // Verify all expected routes are present
+      for (const route of expectedPublicRoutes) {
+        expect(routeMap.public).toContain(route);
+      }
+
+      for (const route of expectedProtectedRoutes) {
+        expect(routeMap.protected).toContain(route);
+      }
+
+      // Verify route counts
+      expect(routeMap.public.length).toBe(expectedPublicRoutes.length);
+      expect(routeMap.protected.length).toBe(expectedProtectedRoutes.length);
+    } catch (error) {
+      console.error('Error in basic route map test:', error);
+      throw error;
     }
-
-    for (const route of expectedProtectedRoutes) {
-      expect(routeMap.protected).toContain(route);
-    }
-
-    // Verify route counts
-    expect(routeMap.public.length).toBe(expectedPublicRoutes.length);
-    expect(routeMap.protected.length).toBe(expectedProtectedRoutes.length);
   });
 
   test('should handle route group inheritance correctly', () => {
-    // Create additional nested structure with inherited protection
-    fs.mkdirSync(path.join(TEST_APP_DIR, '(public)', 'help', 'faq'), { recursive: true });
-    createPageFile(path.join(TEST_APP_DIR, '(public)', 'help', 'faq'));
+    try {
+      // Setup for this specific test
+      if (fs.existsSync(TEST_APP_DIR)) {
+        fs.rmSync(TEST_APP_DIR, { recursive: true, force: true });
+      }
+      fs.mkdirSync(TEST_APP_DIR, { recursive: true });
 
-    const updatedRouteMap = runGenerateRoutes();
-    expect(updatedRouteMap.public).toContain('/help/faq');
+      // Create test app structure
+      createTestAppStructure();
+
+      // Add additional nested structure with inherited protection
+      fs.mkdirSync(path.join(TEST_APP_DIR, '(public)', 'help', 'faq'), { recursive: true });
+      createPageFile(path.join(TEST_APP_DIR, '(public)', 'help', 'faq'));
+
+      const updatedRouteMap = runGenerateRoutes();
+      expect(updatedRouteMap.public).toContain('/help/faq');
+    } catch (error) {
+      console.error('Error in route inheritance test:', error);
+      throw error;
+    }
   });
 
   test('should detect various file extensions', () => {
@@ -159,12 +196,25 @@ describe('Basic route testing', () => {
     const extensions = ['tsx', 'jsx', 'ts'];
 
     for (const ext of extensions) {
-      const testDir = path.join(TEST_APP_DIR, '(protected)', `test-${ext}`);
-      fs.mkdirSync(testDir, { recursive: true });
-      fs.writeFileSync(path.join(testDir, `page.${ext}`), `export default function Page() { return null }`);
+      try {
+        // Create a fresh directory structure for each test
+        if (fs.existsSync(TEST_APP_DIR)) {
+          fs.rmSync(TEST_APP_DIR, { recursive: true, force: true });
+        }
+        fs.mkdirSync(TEST_APP_DIR, { recursive: true });
 
-      const extRouteMap = runGenerateRoutes();
-      expect(extRouteMap.protected).toContain(`/test-${ext}`);
+        // Create only the minimum required structure for this test
+        const testDir = path.join(TEST_APP_DIR, '(protected)', `test-${ext}`);
+        fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)'), { recursive: true });
+        fs.mkdirSync(testDir, { recursive: true });
+        fs.writeFileSync(path.join(testDir, `page.${ext}`), `export default function Page() { return null }`);
+
+        const extRouteMap = runGenerateRoutes();
+        expect(extRouteMap.protected).toContain(`/test-${ext}`);
+      } catch (error) {
+        console.error(`Error testing extension ${ext}:`, error);
+        throw error;
+      }
     }
   });
 });

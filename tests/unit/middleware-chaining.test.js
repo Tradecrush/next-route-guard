@@ -1,11 +1,6 @@
 import { describe, test, expect, beforeAll, vi } from 'vitest';
 import { NextResponse } from 'next/server';
-import { 
-  buildPackageBeforeTests, 
-  setupTestEnvironment, 
-  MockNextRequest,
-  setupNextResponseMocks
-} from './test-helpers';
+import { buildPackageBeforeTests, setupTestEnvironment, MockNextRequest, setupNextResponseMocks } from './test-helpers';
 
 /**
  * Test file for next-route-guard middleware chaining functionality.
@@ -35,7 +30,7 @@ describe('Middleware Chaining', () => {
   test('should chain multiple middleware functions correctly', async () => {
     // Create tracking array for middleware execution order
     const executionOrder = [];
-    
+
     // Create middleware factories
     const withLogging = (next) => {
       return async (request) => {
@@ -43,7 +38,7 @@ describe('Middleware Chaining', () => {
         return next(request);
       };
     };
-    
+
     const withHeaders = (next) => {
       return async (request) => {
         executionOrder.push('Adding headers');
@@ -57,7 +52,7 @@ describe('Middleware Chaining', () => {
         return response;
       };
     };
-    
+
     // Route guard middleware factory using the actual library
     const withRouteGuard = (next) => {
       return async (request) => {
@@ -70,35 +65,35 @@ describe('Middleware Chaining', () => {
           },
           defaultProtected: false // Defaults to public for unknown routes
         });
-        
+
         // Check if protected with the actual middleware
         const response = await middleware(request);
-        
+
         if (response && response.headers && response.headers.get('location')?.includes('/login')) {
           executionOrder.push('Protected route');
           return response;
         }
-        
+
         executionOrder.push('Public route');
         return next(request);
       };
     };
-    
+
     // Create the middleware chain
     const middleware = routeGuard.chain([withLogging, withHeaders, withRouteGuard]);
-    
+
     // Test with public route
     const publicRequest = new MockNextRequest('/public');
     await middleware(publicRequest);
-    
+
     expect(executionOrder).toEqual(['Logging: /public', 'Adding headers', 'Public route']);
-    
+
     // Test with protected route
     vi.clearAllMocks();
     executionOrder.length = 0; // Clear tracking array
     const protectedRequest = new MockNextRequest('/admin');
     const response = await middleware(protectedRequest);
-    
+
     expect(executionOrder).toEqual(['Logging: /admin', 'Adding headers', 'Auth failed', 'Protected route']);
     expect(response.headers.get('location')).toContain('/login');
     expect(response.headers.get('X-Custom-Header')).toBe('value');
@@ -113,7 +108,7 @@ describe('Middleware Chaining', () => {
         return next(request);
       };
     };
-    
+
     // Middleware that checks for the header
     const withUserCheck = (next) => {
       return async (request) => {
@@ -127,22 +122,22 @@ describe('Middleware Chaining', () => {
         return next(request);
       };
     };
-    
+
     // Create middleware chain
     const middleware = routeGuard.chain([withUserId, withUserCheck]);
-    
+
     // Test the chain
     const request = new MockNextRequest('/some-path');
     const response = await middleware(request);
-    
+
     // Should pass through without error
     // Note: chain() returns undefined by default when reaching the end of the chain
     expect(response).toBeUndefined();
   });
-  
+
   test('should handle custom response types in middleware chain', async () => {
     const executionOrder = [];
-    
+
     // Create middleware that returns a json response
     const withJsonError = (next) => {
       return async (request) => {
@@ -156,7 +151,7 @@ describe('Middleware Chaining', () => {
         return next(request);
       };
     };
-    
+
     // Create the middleware chain
     const middleware = routeGuard.chain([
       withJsonError,
@@ -165,19 +160,19 @@ describe('Middleware Chaining', () => {
         return next(req);
       }
     ]);
-    
+
     // Test with error path
     const errorRequest = new MockNextRequest('/api/error');
     const response = await middleware(errorRequest);
-    
+
     expect(executionOrder).toEqual(['Returning JSON error']);
     expect(response.status).toBe(400);
-    
+
     // Test with normal path
     executionOrder.length = 0;
     const normalRequest = new MockNextRequest('/normal');
     await middleware(normalRequest);
-    
+
     expect(executionOrder).toEqual(['Passing through', 'Should not reach here']);
   });
 });
