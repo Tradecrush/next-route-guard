@@ -48,7 +48,7 @@
     "vitest": "^3.0.7"
   },
   "peerDependencies": {
-    "next": ">=15.0.0"
+    "next": ">=13.4.0"
   },
   "files": [
     "dist/**",
