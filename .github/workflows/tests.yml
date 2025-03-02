@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  push:
+    branches: [ '**' ]  # Run on all branches
+  pull_request:
+    branches: [ '**' ]  # Run on PRs targeting any branch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Node ${{ matrix.node }} Test
+
+    strategy:
+      matrix:
+        node: [18, 20, 22]
+      fail-fast: false  # Continue with other jobs if one fails
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node }}
+        # Don't use built-in caching
+        
+    # Create custom cache with explicit key
+    - name: Cache npm dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: npm-deps-${{ runner.os }}-node${{ matrix.node }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          npm-deps-${{ runner.os }}-node${{ matrix.node }}-
+    
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build package
+      run: npm run build
+      
+    - name: Run tests
+      run: npm test

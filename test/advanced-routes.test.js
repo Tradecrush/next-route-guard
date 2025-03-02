@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const assert = require('assert');
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 
 /**
  * Advanced test file for the next-route-guard generate-routes.js script
@@ -118,102 +118,82 @@ function runGenerateRoutes() {
 // This section for custom pattern tests was replaced with a simpler test in the
 // runAdvancedTests function to better match the actual implementation
 
-// Run advanced tests
-function runAdvancedTests() {
-  console.log('🧪 Running advanced route tests...');
+describe('Advanced route testing', () => {
+  beforeAll(() => {
+    cleanTestDirectory();
+    createAdvancedTestAppStructure();
+  });
 
-  console.log('\n1. Setting up advanced test app structure...');
-  cleanTestDirectory();
-  createAdvancedTestAppStructure();
+  afterAll(() => {
+    cleanTestDirectory();
+  });
 
-  console.log('\n2. Running route generation...');
-  const routeMap = runGenerateRoutes();
+  test('should generate correct route map for complex patterns', () => {
+    const routeMap = runGenerateRoutes();
 
-  console.log('\n3. Verifying route map...');
+    // Expected public and protected routes based on actual output
+    const expectedPublicRoutes = [
+      '/products',
+      '/products/[id]',
+      '/products/(.)preview/[id]',
+      '/account/login',
+      '/account/register',
+      '/help',
+      '/help/admin' // This was showing as public in the output
+    ];
 
-  // Expected public and protected routes based on actual output
-  const expectedPublicRoutes = [
-    '/products',
-    '/products/[id]',
-    '/products/(.)preview/[id]',
-    '/account/login',
-    '/account/register',
-    '/help',
-    '/help/admin' // This was showing as public in the output
-  ];
+    const expectedProtectedRoutes = [
+      '/', // Root route is protected by default
+      '/dashboard',
+      '/dashboard/@stats', // Parallel routes are included
+      '/dashboard/@activity', // Parallel routes are included
+      '/shop/[category]/[subcategory]/[productId]',
+      '/account/settings',
+      '/account/settings/[section]',
+      '/docs',
+      '/docs/[[...path]]',
+      '/docs/public-docs', // These are actually protected in the output
+      '/docs/public-docs/[...path]', // These are actually protected in the output
+      '/react-routes/jsx-route',
+      '/react-routes/tsx-route'
+    ];
 
-  const expectedProtectedRoutes = [
-    '/', // Root route is protected by default
-    '/dashboard',
-    '/dashboard/@stats', // Parallel routes are included
-    '/dashboard/@activity', // Parallel routes are included
-    '/shop/[category]/[subcategory]/[productId]',
-    '/account/settings',
-    '/account/settings/[section]',
-    '/docs',
-    '/docs/[[...path]]',
-    '/docs/public-docs', // These are actually protected in the output
-    '/docs/public-docs/[...path]', // These are actually protected in the output
-    '/react-routes/jsx-route',
-    '/react-routes/tsx-route'
-  ];
+    // Verify all expected routes are present
+    for (const route of expectedPublicRoutes) {
+      expect(routeMap.public).toContain(route);
+    }
 
-  // Verify all expected routes are present
-  for (const route of expectedPublicRoutes) {
-    assert(routeMap.public.includes(route), `Public route ${route} not found in generated map`);
-    console.log(`✅ Public route verified: ${route}`);
-  }
+    for (const route of expectedProtectedRoutes) {
+      expect(routeMap.protected).toContain(route);
+    }
+  });
 
-  for (const route of expectedProtectedRoutes) {
-    assert(routeMap.protected.includes(route), `Protected route ${route} not found in generated map`);
-    console.log(`✅ Protected route verified: ${route}`);
-  }
+  test('should handle parallel routes correctly', () => {
+    const routeMap = runGenerateRoutes();
+    expect(routeMap.protected).toContain('/dashboard/@stats');
+    expect(routeMap.protected).toContain('/dashboard/@activity');
+  });
 
-  // Specific tests for more complex concepts
-  console.log('\n4. Testing parallel routes (@slot)...');
-  // In the actual implementation, parallel routes appear in the route map
-  // So we'll check if they're properly categorized as protected
-  assert(
-    routeMap.protected.includes('/dashboard/@stats'),
-    'Parallel route should be included in route map and protected'
-  );
-  assert(
-    routeMap.protected.includes('/dashboard/@activity'),
-    'Parallel route should be included in route map and protected'
-  );
-  console.log('✅ Parallel routes correctly handled');
+  test('should handle route protection inheritance', () => {
+    const routeMap = runGenerateRoutes();
+    expect(routeMap.public).toContain('/help/admin');
+  });
 
-  console.log('\n5. Testing route protection inheritance...');
-  // Based on actual output, /help/admin is in the public routes due to how the scanner works
-  assert(
-    routeMap.public.includes('/help/admin'),
-    "Nested routes within public group inherit the group's protection level"
-  );
-  console.log('✅ Route protection inheritance verified');
+  test('should detect different file extensions', () => {
+    const routeMap = runGenerateRoutes();
+    expect(routeMap.protected).toContain('/react-routes/jsx-route');
+    expect(routeMap.protected).toContain('/react-routes/tsx-route');
+  });
 
-  console.log('\n6. Testing different file extensions...');
-  assert(routeMap.protected.includes('/react-routes/jsx-route'), 'JSX page file should be detected');
-  assert(routeMap.protected.includes('/react-routes/tsx-route'), 'TSX page file should be detected');
-  console.log('✅ Different file extensions verified');
+  test('should handle custom route patterns', () => {
+    // Create directories with the right names based on the current implementation
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(public)', 'custom-public-test'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)', 'custom-protected-test'), { recursive: true });
+    createPageFile(path.join(TEST_APP_DIR, '(public)', 'custom-public-test'));
+    createPageFile(path.join(TEST_APP_DIR, '(protected)', 'custom-protected-test'));
 
-  console.log('\n7. Testing custom route patterns...');
-  // Looking at the output, it seems the custom pattern detection is not working as expected
-  // Let's create directories with the right names based on the current implementation
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(public)', 'custom-public-test'), { recursive: true });
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(protected)', 'custom-protected-test'), { recursive: true });
-  createPageFile(path.join(TEST_APP_DIR, '(public)', 'custom-public-test'));
-  createPageFile(path.join(TEST_APP_DIR, '(protected)', 'custom-protected-test'));
-
-  const updatedRouteMap = runGenerateRoutes();
-  assert(updatedRouteMap.public.includes('/custom-public-test'), 'Public route test should be public');
-  assert(updatedRouteMap.protected.includes('/custom-protected-test'), 'Protected route test should be protected');
-  console.log('✅ Default route patterns verified');
-
-  console.log('\n✅ All advanced tests passed!');
-
-  // Clean up
-  cleanTestDirectory();
-}
-
-// Run the tests
-runAdvancedTests();
+    const updatedRouteMap = runGenerateRoutes();
+    expect(updatedRouteMap.public).toContain('/custom-public-test');
+    expect(updatedRouteMap.protected).toContain('/custom-protected-test');
+  });
+});

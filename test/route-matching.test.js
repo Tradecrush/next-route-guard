@@ -1,7 +1,7 @@
-const path = require('path');
-const { execSync } = require('child_process');
-const assert = require('assert');
-const { NextResponse } = require('next/server');
+import { describe, test, expect, beforeAll } from 'vitest';
+import path from 'path';
+import { execSync } from 'child_process';
+import { NextResponse } from 'next/server';
 
 /**
  * Test file for next-route-guard URL matching logic
@@ -9,16 +9,18 @@ const { NextResponse } = require('next/server');
  * without special Next.js syntax markers, including dynamic segments
  */
 
-// Build the package first to ensure the dist folder exists
-try {
-  execSync('npm run build', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
-} catch (error) {
-  console.error('Failed to build package:', error);
-  process.exit(1);
-}
+// Build the package before running tests
+beforeAll(() => {
+  try {
+    execSync('npm run build', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+  } catch (error) {
+    console.error('Failed to build package:', error);
+    throw error;
+  }
+});
 
-// Now require the built module to test the actual implementation
-const routeAuth = require('../dist/index.js');
+// Import the module - dynamically because we need to build it first
+import * as routeAuth from '../dist/index.js';
 
 // Create a mock NextRequest class for testing
 class MockNextRequest {
@@ -91,7 +93,7 @@ const testCases = [
   { url: '/blog', expected: true, desc: 'Parent of catch-all should be protected if not defined' }
 ];
 
-// Function to test the routing
+// Helper function to test route protection
 async function testRouteProtection(pathname, routeMap) {
   // Create middleware with mock auth
   const middleware = routeAuth.createRouteAuthMiddleware({
@@ -113,48 +115,10 @@ async function testRouteProtection(pathname, routeMap) {
   return response && response.status === 307 && response.headers.get('location').includes('/login');
 }
 
-// Run the matching tests using the actual next-route-guard implementation
-async function runMatchingTests() {
-  console.log('🧪 Running route matching tests on next-route-guard implementation...');
-  console.log('Testing URL matching with dynamic routes, catch-all routes, and more');
-  
-  let passCount = 0;
-  let failCount = 0;
-  
-  // Test each case using the real middleware
-  for (const testCase of testCases) {
-    const { url, expected, desc } = testCase;
-    
-    try {
-      // Test using actual middleware
-      const isProtected = await testRouteProtection(url, testRouteMap);
-      
-      // Check result
-      assert.equal(isProtected, expected, `${desc} - URL: ${url} should be ${expected ? 'protected' : 'public'}`);
-      console.log(`✅ PASS: ${desc} - ${url} is correctly ${expected ? 'protected' : 'public'}`);
-      passCount++;
-    } catch (error) {
-      console.log(`❌ FAIL: ${desc} - ${url}`);
-      console.log(`   Expected: ${expected ? 'protected' : 'public'}, Got: ${!expected ? 'protected' : 'public'}`);
-      console.log(`   ${error.message}`);
-      failCount++;
-    }
-  }
-  
-  // Note: All dynamic route patterns are already tested in the main testCases array
-  // We don't need separate tests for dynamic routes
-  
-  // Summary
-  console.log(`\n📝 Test Summary: ${passCount} passed, ${failCount} failed`);
-  
-  if (failCount > 0) {
-    console.log('\n⚠️ Some tests failed. Please check the route matching implementation.');
-    process.exit(1);
-  } else {
-    console.log('\n✅ All route matching tests passed!');
-    console.log('The next-route-guard middleware correctly handles URL transformation from Next.js route patterns.');
-  }
-}
-
-// Run the tests
-runMatchingTests();
+// Convert to Vitest tests
+describe('Route Matching Logic', () => {
+  test.each(testCases)('$desc - $url should be $expected ? protected : public', async ({ url, expected, desc }) => {
+    const isProtected = await testRouteProtection(url, testRouteMap);
+    expect(isProtected).toBe(expected);
+  });
+});

@@ -12,6 +12,29 @@ import type { RouteAuthOptions, RouteMap } from './types';
 const DEFAULT_LOGIN_ROUTE = '/login';
 
 /**
+ * Node in the route trie representing a route segment
+ * Used for efficient route matching and protection status lookup
+ */
+interface RouteNode {
+  // Whether this route is protected
+  isProtected?: boolean;
+  
+  // Regular children by segment name
+  children: Map<string, RouteNode>;
+  
+  // Dynamic child node (for [param] segments)
+  dynamicChild?: RouteNode;
+  
+  // Catch-all child (for [...slug] or [[...slug]])
+  catchAllChild?: {
+    node: RouteNode;
+    isOptional: boolean;
+    // Segments after the catch-all (e.g., [...slug]/edit)
+    restSegments?: Map<string, RouteNode>;
+  };
+}
+
+/**
  * Creates a Next.js middleware function that enforces route authentication
  * based on the directory structure conventions in the app router.
  * 
@@ -37,6 +60,9 @@ export function createRouteAuthMiddleware(options: RouteAuthOptions) {
     excludeUrls = ['/api/(.*)']
   } = options;
 
+  // Build the route trie at initialization time for efficient matching
+  const routeTrie = buildRouteTrie(routeMap);
+
   // Return the middleware function that will be executed for each request
   return async function routeAuthMiddleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
@@ -53,8 +79,8 @@ export function createRouteAuthMiddleware(options: RouteAuthOptions) {
       }
     }
 
-    // Determine if the current route should be protected based on the route map
-    const isProtected = shouldProtectPath(pathname, routeMap, defaultProtected);
+    // Determine if the current route should be protected using the trie
+    const isProtected = matchPath(pathname, routeTrie, defaultProtected);
 
     // If route is public, allow access without auth check
     if (!isProtected) {
@@ -75,185 +101,325 @@ export function createRouteAuthMiddleware(options: RouteAuthOptions) {
 }
 
 /**
- * Helper function to check if a URL path matches a route pattern with dynamic segments.
+ * Builds a route trie from a route map for efficient path matching
+ * This converts the flat route lists into a tree structure for O(k) lookups
+ * where k is the depth of the path (number of segments).
  * 
- * This handles Next.js route pattern syntax including:
- * - Regular path segments (/about, /users)
- * - Dynamic route parameters (/users/[id])
- * - Catch-all routes (/docs/[...slug])
- * - Optional catch-all routes (/blog/[[...slug]])
- * 
- * @param urlPath - The actual URL path to check
- * @param routePattern - The route pattern to match against
- * @returns true if the path matches the pattern, false otherwise
+ * @param routeMap - Map of protected and public routes
+ * @returns Root node of the route trie
  */
-function matchDynamicPath(urlPath: string, routePattern: string): boolean {
-  // Handle exact matches first (optimization)
-  if (urlPath === routePattern) {
-    return true;
+function buildRouteTrie(routeMap: RouteMap): RouteNode {
+  // Create the root node
+  const root: RouteNode = {
+    children: new Map()
+  };
+  
+  // Add protected routes first
+  for (const route of routeMap.protected) {
+    addRouteToTrie(root, route, true);
   }
   
-  // Clean the path: remove query parameters and hash fragments 
-  let cleanPath = (urlPath.split('?')[0] || '').split('#')[0] || '';
-  
-  // Normalize trailing slashes for consistent matching
-  if (cleanPath.endsWith('/') && cleanPath.length > 1) {
-    cleanPath = cleanPath.slice(0, -1);
+  // Add public routes (these will override protection status for the same paths)
+  for (const route of routeMap.public) {
+    addRouteToTrie(root, route, false);
   }
   
-  // Fast path: if there are no dynamic segments, we just need an exact match
-  if (!routePattern.includes('[')) {
-    return cleanPath === routePattern;
-  }
-  
-  // Split both paths into segments for detailed comparison
-  const urlSegments = cleanPath.split('/').filter(Boolean);
-  const patternSegments = routePattern.split('/').filter(Boolean);
-  
-  // Special handling for catch-all routes (which can match multiple segments)
-  const catchAllIndex = patternSegments.findIndex(segment => 
-    segment && (segment.startsWith('[...') || segment.startsWith('[[...'))
-  );
-  
-  if (catchAllIndex !== -1) {
-    // For catch-all routes, we need to check segments before the catch-all first
-    for (let i = 0; i < catchAllIndex; i++) {
-      const patternSegment = patternSegments[i];
-      
-      // If URL has fewer segments than are required before the catch-all, no match
-      if (i >= urlSegments.length) {
-        return false;
-      }
-      
-      // Dynamic segment in prefix (like /users/[id]/docs/[...rest])
-      if (patternSegment && patternSegment.startsWith('[') && patternSegment.endsWith(']')) {
-        continue; // Dynamic segment can match any value
-      }
-      
-      // Static segment must match exactly
-      if (urlSegments[i] !== patternSegment) {
-        return false;
-      }
-    }
-    
-    // Now handle the catch-all segment
-    const catchAllSegment = patternSegments[catchAllIndex];
-    const isOptionalCatchAll = catchAllSegment && catchAllSegment.startsWith('[[...');
-    
-    // Optional catch-all can match with zero or more remaining segments
-    if (isOptionalCatchAll) {
-      return urlSegments.length >= catchAllIndex;
-    }
-    
-    // Regular catch-all requires at least one segment
-    return urlSegments.length >= catchAllIndex + 1;
-  }
-  
-  // For normal routes (no catch-all), the number of segments must match
-  if (urlSegments.length !== patternSegments.length) {
-    return false;
-  }
-  
-  // Compare each segment
-  for (let i = 0; i < patternSegments.length; i++) {
-    const patternSegment = patternSegments[i];
-    
-    // Dynamic parameter matches any value
-    if (patternSegment && patternSegment.startsWith('[') && patternSegment.endsWith(']')) {
-      continue;
-    }
-    
-    // Static segment must match exactly
-    if (urlSegments[i] !== patternSegment) {
-      return false;
-    }
-  }
-  
-  // All segments matched
-  return true;
+  return root;
 }
 
 /**
- * Determines if a path should be protected based on the route map.
+ * Adds a single route to the trie
  * 
- * This function implements the route protection rules, checking:
- * 1. Exact matches in protected/public lists
- * 2. Dynamic route matches
- * 3. Parent path inheritance (a child route inherits protection from its parent)
+ * @param root - Root node of the trie
+ * @param route - Route path to add
+ * @param isProtected - Whether this route is protected
+ */
+function addRouteToTrie(root: RouteNode, route: string, isProtected: boolean): void {
+  // Handle root route specially
+  if (route === '/') {
+    root.isProtected = isProtected;
+    return;
+  }
+  
+  // Split path into segments
+  const segments = route.split('/').filter(Boolean);
+  let currentNode = root;
+  
+  // Find the index of any catch-all segment
+  const catchAllIndex = segments.findIndex(s => 
+    s.startsWith('[...') || s.startsWith('[[...')
+  );
+  
+  // Process segments before catch-all normally
+  const segmentsBeforeCatchAll = catchAllIndex === -1 ? 
+    segments : segments.slice(0, catchAllIndex);
+  
+  for (let i = 0; i < segmentsBeforeCatchAll.length; i++) {
+    const segment = segmentsBeforeCatchAll[i];
+    if (!segment) continue; // Skip empty segments
+    
+    const isLastSegment = i === segments.length - 1;
+    
+    // Regular dynamic segment [param]
+    if (segment.startsWith('[') && segment.endsWith(']') && 
+        !segment.startsWith('[...') && !segment.startsWith('[[...')) {
+      if (!currentNode.dynamicChild) {
+        currentNode.dynamicChild = { 
+          children: new Map(),
+          isProtected: isLastSegment ? isProtected : undefined
+        };
+      } else if (isLastSegment) {
+        currentNode.dynamicChild.isProtected = isProtected;
+      }
+      currentNode = currentNode.dynamicChild;
+    } 
+    // Regular segment
+    else {
+      if (!currentNode.children.has(segment)) {
+        currentNode.children.set(segment, {
+          children: new Map(),
+          isProtected: isLastSegment ? isProtected : undefined
+        });
+      } else if (isLastSegment) {
+        const childNode = currentNode.children.get(segment);
+        if (childNode) {
+          childNode.isProtected = isProtected;
+        }
+      }
+      const nextNode = currentNode.children.get(segment);
+      if (nextNode) {
+        currentNode = nextNode;
+      }
+    }
+  }
+  
+  // If there's a catch-all segment
+  if (catchAllIndex !== -1) {
+    const catchAllSegment = segments[catchAllIndex];
+    if (catchAllSegment) {
+      const isOptional = catchAllSegment.startsWith('[[...');
+      
+      // Create catch-all node if it doesn't exist
+      if (!currentNode.catchAllChild) {
+        currentNode.catchAllChild = {
+          node: {
+            children: new Map(),
+            isProtected: undefined
+          },
+          isOptional,
+          restSegments: new Map()
+        };
+      }
+    }
+    
+    // If there are segments after the catch-all
+    if (catchAllIndex < segments.length - 1 && currentNode.catchAllChild && currentNode.catchAllChild.restSegments) {
+      const afterCatchAll = segments.slice(catchAllIndex + 1);
+      let restSegments = currentNode.catchAllChild.restSegments;
+      
+      // Add nodes for segments after catch-all
+      let restNode: RouteNode | undefined;
+      
+      for (let i = 0; i < afterCatchAll.length; i++) {
+        const segment = afterCatchAll[i];
+        if (!segment) continue; // Skip empty segments
+        
+        const isLastSegment = i === afterCatchAll.length - 1;
+        
+        if (!restSegments.has(segment)) {
+          restSegments.set(segment, {
+            children: new Map(),
+            isProtected: isLastSegment ? isProtected : undefined
+          });
+        } else if (isLastSegment) {
+          const segmentNode = restSegments.get(segment);
+          if (segmentNode) {
+            segmentNode.isProtected = isProtected;
+          }
+        }
+        
+        restNode = restSegments.get(segment);
+        
+        // If not the last segment and we have a valid node, prepare for more
+        if (!isLastSegment && restNode) {
+          restSegments = restNode.children;
+        }
+      }
+    } 
+    // If catch-all is the last segment
+    else if (currentNode.catchAllChild) {
+      currentNode.catchAllChild.node.isProtected = isProtected;
+    }
+  }
+}
+
+/**
+ * Match a path against the route trie to determine if it's protected
  * 
- * @param path - The URL path to check
- * @param routeMap - Map of protected and public routes
- * @param defaultProtected - Whether routes are protected by default
+ * @param path - URL path to check
+ * @param routeTrie - Route trie for efficient matching
+ * @param defaultProtected - Default protection status
  * @returns true if the path should be protected, false if it's public
  */
-function shouldProtectPath(path: string, routeMap: RouteMap, defaultProtected: boolean): boolean {
-  // Clean and normalize the path for consistent matching
+function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean): boolean {
+  // Clean and normalize the path
   let cleanPath = (path.split('?')[0] || '').split('#')[0] || '';
-  
-  // Normalize trailing slashes
   if (cleanPath.endsWith('/') && cleanPath.length > 1) {
     cleanPath = cleanPath.slice(0, -1);
   }
-
-  // Step 1: Check exact matches first (fastest path)
-  if (routeMap.protected.includes(cleanPath)) {
-    return true;
-  }
-
-  if (routeMap.public.includes(cleanPath)) {
-    return false;
+  
+  // Special case for root path
+  if (cleanPath === '/') {
+    return routeTrie.isProtected ?? defaultProtected;
   }
   
-  // Step 2: Check for dynamic route matches
-  // First check public routes - if any match, the route is public
-  for (const publicRoute of routeMap.public) {
-    if (matchDynamicPath(cleanPath, publicRoute)) {
-      return false;
-    }
-  }
-  
-  // Then check protected routes - if any match, the route is protected
-  for (const protectedRoute of routeMap.protected) {
-    if (matchDynamicPath(cleanPath, protectedRoute)) {
-      return true;
-    }
-  }
-
-  // Step 3: Check for parent path inheritance
-  // This handles nested routes inheriting protection status from parent routes
+  // Split path into segments
   const segments = cleanPath.split('/').filter(Boolean);
-  
-  // Walk up the path hierarchy and check each parent path
-  let currentPath = '';
   let isProtected = defaultProtected;
-
-  for (let i = 0; i <= segments.length; i++) {
-    // Construct the current parent path
-    currentPath = i === 0 ? '/' : `/${segments.slice(0, i).join('/')}`;
-
-    // Check exact matches for the parent path
-    if (routeMap.protected.includes(currentPath)) {
-      isProtected = true;
-    } else if (routeMap.public.includes(currentPath)) {
-      isProtected = false;
-    }
-    
-    // Check dynamic route matches for parent paths
-    for (const publicRoute of routeMap.public) {
-      if (matchDynamicPath(currentPath, publicRoute)) {
-        isProtected = false;
-        break;
-      }
-    }
-    
-    for (const protectedRoute of routeMap.protected) {
-      if (matchDynamicPath(currentPath, protectedRoute)) {
-        isProtected = true;
-        break;
+  
+  // Start at the root node (which may have its own protection status)
+  let currentNode = routeTrie;
+  if (currentNode.isProtected !== undefined) {
+    isProtected = currentNode.isProtected;
+  }
+  
+  // Match path segments
+  let matchIndex = 0;
+  
+  // Special case for segments like `/admin` that match `/admin/[[...slug]]`
+  // When we have a route like /admin/[[...slug]], the trie has structure:
+  // root -> 'admin' -> catchAllChild with isOptional=true
+  // So we need to check if the 'admin' node has a catchAllChild before going into the segment matching
+  if (segments.length === 1 && segments[0] && currentNode.children.has(segments[0])) {
+    const firstSegmentNode = currentNode.children.get(segments[0]);
+    if (firstSegmentNode && firstSegmentNode.catchAllChild && firstSegmentNode.catchAllChild.isOptional) {
+      // We're at the exact node that has the optional catch-all child
+      if (firstSegmentNode.catchAllChild.node.isProtected !== undefined) {
+        return firstSegmentNode.catchAllChild.node.isProtected;
       }
     }
   }
-
-  // Return the final protection status
+  
+  while (matchIndex < segments.length) {
+    const segment = segments[matchIndex];
+    let matched = false;
+    
+    // 1. Try exact match first
+    if (segment && currentNode.children.has(segment)) {
+      const nextNode = currentNode.children.get(segment);
+      if (nextNode) {
+        currentNode = nextNode;
+        matched = true;
+        matchIndex++;
+      }
+    }
+    // 2. Try dynamic segment
+    else if (currentNode.dynamicChild) {
+      currentNode = currentNode.dynamicChild;
+      matched = true;
+      matchIndex++;
+    }
+    // 3. Try catch-all
+    else if (currentNode.catchAllChild) {
+      // Non-optional catch-all requires at least one segment
+      if (!currentNode.catchAllChild.isOptional && matchIndex >= segments.length) {
+        break;
+      }
+      
+      // For optional catch-all matching base paths (like /content)
+      if (currentNode.catchAllChild.isOptional && matchIndex >= segments.length) {
+        // For base path matching with optional catch-all, we've found a match
+        if (currentNode.catchAllChild.node.isProtected !== undefined) {
+          isProtected = currentNode.catchAllChild.node.isProtected;
+        }
+        return isProtected;
+      }
+      
+      // Set protection status from catch-all node
+      if (currentNode.catchAllChild.node.isProtected !== undefined) {
+        isProtected = currentNode.catchAllChild.node.isProtected;
+      }
+      
+      // Check for rest segments
+      if (currentNode.catchAllChild.restSegments && currentNode.catchAllChild.restSegments.size > 0) {
+        // Try to find a matching "rest segment" among remaining URL parts
+        let restMatched = false;
+        let remainingSegments = segments.slice(matchIndex);
+        
+        // Try each remaining segment as a potential start of a rest path
+        for (let i = 0; i < remainingSegments.length; i++) {
+          const potentialRestStart = remainingSegments[i];
+          if (!potentialRestStart) continue;
+          
+          if (currentNode.catchAllChild.restSegments.has(potentialRestStart)) {
+            // We have a potential rest segment match
+            const restPath = remainingSegments.slice(i);
+            const restStartNode = currentNode.catchAllChild.restSegments.get(potentialRestStart);
+            if (!restStartNode) continue;
+            
+            let currentRestNode = restStartNode;
+            
+            if (restPath.length === 1) {
+              // Single segment rest path, we have a match
+              if (currentRestNode.isProtected !== undefined) {
+                isProtected = currentRestNode.isProtected;
+              }
+              restMatched = true;
+              break;
+            }
+            
+            // Multi-segment rest path, need to check further segments
+            let restMatchComplete = true;
+            for (let j = 1; j < restPath.length; j++) {
+              const nextSegment = restPath[j];
+              if (!nextSegment) continue;
+              
+              if (currentRestNode.children.has(nextSegment)) {
+                const nextNode = currentRestNode.children.get(nextSegment);
+                if (nextNode) {
+                  currentRestNode = nextNode;
+                  if (j === restPath.length - 1 && currentRestNode.isProtected !== undefined) {
+                    isProtected = currentRestNode.isProtected;
+                  }
+                } else {
+                  restMatchComplete = false;
+                  break;
+                }
+              } else {
+                // Rest path doesn't match completely
+                restMatchComplete = false;
+                break;
+              }
+            }
+            
+            if (restMatchComplete) {
+              restMatched = true;
+              break;
+            }
+          }
+        }
+        
+        // If we matched a rest segment, we're done
+        if (restMatched) {
+          return isProtected;
+        }
+      }
+      
+      // If no rest segments matched, the catch-all consumes all remaining segments
+      return isProtected;
+    }
+    
+    // Update protection status
+    if (matched && currentNode.isProtected !== undefined) {
+      isProtected = currentNode.isProtected;
+    }
+    
+    // If no match found, we're done
+    if (!matched) {
+      break;
+    }
+  }
+  
+  // We've either matched all segments or run out of matches
   return isProtected;
 }

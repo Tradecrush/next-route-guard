@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const assert = require('assert');
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 
 /**
  * Test file for the next-route-guard generate-routes.js script
@@ -80,82 +80,66 @@ function runGenerateRoutes() {
   }
 }
 
-// Test suite
-function runTests() {
-  console.log('🧪 Running generate-routes.js tests...');
+describe('Basic route testing', () => {
+  beforeAll(() => {
+    cleanTestDirectory();
+    createTestAppStructure();
+  });
 
-  console.log('\n1. Setting up test app structure...');
-  cleanTestDirectory();
-  createTestAppStructure();
+  afterAll(() => {
+    cleanTestDirectory();
+  });
 
-  console.log('\n2. Running route generation...');
-  const routeMap = runGenerateRoutes();
+  test('should generate the correct basic route map', () => {
+    const routeMap = runGenerateRoutes();
 
-  console.log('\n3. Verifying route map...');
+    // Check public routes
+    const expectedPublicRoutes = ['/about', '/blog/[...slug]', '/settings/profile'];
 
-  // Check public routes
-  const expectedPublicRoutes = ['/about', '/blog/[...slug]', '/settings/profile'];
+    // Check protected routes
+    const expectedProtectedRoutes = [
+      '/', // Root route is protected by default since it's not in a (public) group
+      '/dashboard',
+      '/users/[id]',
+      '/docs/[[...catchAll]]',
+      '/products/[category]/[id]',
+      '/settings/billing'
+    ];
 
-  // Check protected routes
-  const expectedProtectedRoutes = [
-    '/', // Root route is protected by default since it's not in a (public) group
-    '/dashboard',
-    '/users/[id]',
-    '/docs/[[...catchAll]]',
-    '/products/[category]/[id]',
-    '/settings/billing'
-  ];
+    // Verify all expected routes are present
+    for (const route of expectedPublicRoutes) {
+      expect(routeMap.public).toContain(route);
+    }
 
-  // Verify all expected routes are present
-  for (const route of expectedPublicRoutes) {
-    assert(routeMap.public.includes(route), `Public route ${route} not found in generated map`);
-    console.log(`✅ Public route verified: ${route}`);
-  }
+    for (const route of expectedProtectedRoutes) {
+      expect(routeMap.protected).toContain(route);
+    }
 
-  for (const route of expectedProtectedRoutes) {
-    assert(routeMap.protected.includes(route), `Protected route ${route} not found in generated map`);
-    console.log(`✅ Protected route verified: ${route}`);
-  }
+    // Verify route counts
+    expect(routeMap.public.length).toBe(expectedPublicRoutes.length);
+    expect(routeMap.protected.length).toBe(expectedProtectedRoutes.length);
+  });
 
-  // Verify route counts
-  assert.equal(
-    routeMap.public.length,
-    expectedPublicRoutes.length,
-    `Expected ${expectedPublicRoutes.length} public routes but got ${routeMap.public.length}`
-  );
-  assert.equal(
-    routeMap.protected.length,
-    expectedProtectedRoutes.length,
-    `Expected ${expectedProtectedRoutes.length} protected routes but got ${routeMap.protected.length}`
-  );
+  test('should handle route group inheritance correctly', () => {
+    // Create additional nested structure with inherited protection
+    fs.mkdirSync(path.join(TEST_APP_DIR, '(public)', 'help', 'faq'), { recursive: true });
+    createPageFile(path.join(TEST_APP_DIR, '(public)', 'help', 'faq'));
 
-  console.log('\n4. Testing route group inheritance...');
-  // Create additional nested structure with inherited protection
-  fs.mkdirSync(path.join(TEST_APP_DIR, '(public)', 'help', 'faq'), { recursive: true });
-  createPageFile(path.join(TEST_APP_DIR, '(public)', 'help', 'faq'));
+    const updatedRouteMap = runGenerateRoutes();
+    expect(updatedRouteMap.public).toContain('/help/faq');
+  });
 
-  const updatedRouteMap = runGenerateRoutes();
-  assert(updatedRouteMap.public.includes('/help/faq'), 'Nested route in public group should be public');
-  console.log('✅ Route group inheritance verified');
+  test('should detect various file extensions', () => {
+    // Test with different file extensions
+    const extensions = ['tsx', 'jsx', 'ts'];
+    
+    for (const ext of extensions) {
+      const testDir = path.join(TEST_APP_DIR, '(protected)', `test-${ext}`);
+      fs.mkdirSync(testDir, { recursive: true });
+      fs.writeFileSync(path.join(testDir, `page.${ext}`), `export default function Page() { return null }`);
 
-  console.log('\n5. Testing file type variations...');
-  // Test with different file extensions
-  const extensions = ['tsx', 'jsx', 'ts'];
-  for (const ext of extensions) {
-    const testDir = path.join(TEST_APP_DIR, '(protected)', `test-${ext}`);
-    fs.mkdirSync(testDir, { recursive: true });
-    fs.writeFileSync(path.join(testDir, `page.${ext}`), `export default function Page() { return null }`);
-
-    const extRouteMap = runGenerateRoutes();
-    assert(extRouteMap.protected.includes(`/test-${ext}`), `Page with .${ext} extension not detected`);
-    console.log(`✅ File extension .${ext} verified`);
-  }
-
-  console.log('\n✅ All tests passed!');
-
-  // Clean up
-  cleanTestDirectory();
-}
-
-// Run the tests
-runTests();
+      const extRouteMap = runGenerateRoutes();
+      expect(extRouteMap.protected).toContain(`/test-${ext}`);
+    }
+  });
+});

@@ -7,6 +7,9 @@ This directory contains tests for the `@tradecrush/next-route-guard` package, sp
 - `generate-routes.test.js`: Basic tests for the route generation script, covering simple dynamic routes and common Next.js routing patterns.
 - `advanced-routes.test.js`: Advanced tests for complex Next.js route patterns including parallel routes, intercepted routes, and nested route protection.
 - `route-matching.test.js`: Tests for route matching with real-world URLs (without Next.js syntax markers).
+- `complex-middleware.test.js`: Integration tests for the middleware with realistic route patterns including admin sections and optional catch-all segments.
+- `trie-matching.test.js`: Tests for the trie-based route matching algorithm, including advanced route patterns and edge cases.
+- `performance.test.js`: Performance benchmarks for the trie-based route matching algorithm with large datasets.
 - `run-all-tests.js`: A script to run all tests after building the package.
 
 ## Running Tests
@@ -55,16 +58,8 @@ These tests cover the main functionality of the next-route-guard package, includ
 - Dynamic route parameter matching (e.g., `/products/123` matching `/products/[id]`)
 - Catch-all route matching (e.g., `/blog/2023/01/post` matching `/blog/[...slug]`)
 - Optional catch-all routes (e.g., `/docs` and `/docs/guide` matching `/docs/[[...catchAll]]`)
+- Admin routes with optional catch-all (e.g., `/admin` and `/admin/users` matching `/admin/[[...slug]]`)
 - Edge cases like trailing slashes, query parameters, and hash fragments
-
-## Adding New Tests
-
-To add a new test case:
-
-1. Update the relevant test file or create a new one
-2. Create the appropriate test directory structure
-3. Add the test assertions
-4. Update the `run-all-tests.js` script if needed
 
 ## Visual Test Output
 
