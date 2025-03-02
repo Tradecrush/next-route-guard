@@ -9,18 +9,28 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    name: Node ${{ matrix.node }} Test
 
     strategy:
       matrix:
-        node-version: [18.x, 20.x]
+        node: [18, 20]
+      fail-fast: false  # Continue with other jobs if one fails
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js ${{ matrix.node }}
+      uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: ${{ matrix.node }}
         cache: 'npm'
-    - run: npm ci
-    - run: npm run build
-    - run: npm test
+        cache-dependency-path: package-lock.json
+    
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build package
+      run: npm run build
+      
+    - name: Run tests
+      run: npm test
