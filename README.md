@@ -178,7 +178,7 @@ Next Route Guard uses a specialized trie (prefix tree) data structure for route 
 
 #### How the Route Trie Works
 
-The route trie transforms your app directory structure into a tree representation that efficiently handles route protection. Let's look at a typical Next.js app directory:
+The route trie transforms your app directory structure into a tree representation that efficiently handles route protection. Let's look at a comprehensive example of a Next.js app directory with various route patterns:
 
 ```
 app/
