@@ -15,6 +15,23 @@ A convention-based route authentication middleware for Next.js applications with
 [![Unit Tests](https://github.com/tradecrush/next-route-guard/actions/workflows/tests.yml/badge.svg)](https://github.com/tradecrush/next-route-guard/actions/workflows/tests.yml)
 [![Next.js Compatibility](https://github.com/tradecrush/next-route-guard/actions/workflows/compatibility.yml/badge.svg)](https://github.com/tradecrush/next-route-guard/actions/workflows/compatibility.yml)
 
+## Table of Contents
+
+- [Features](#features) - Key capabilities and advantages
+- [Why Next Route Guard?](#why-next-route-guard) - Problems solved and benefits
+- [Installation](#installation) - How to add to your project
+- [Quick Start](#-quick-start) - Get up and running in minutes
+- [How It Works](#how-it-works) - Under the hood: build & runtime processes
+- [Route Protection Strategy](#-route-protection-strategy) - How routes are protected
+- [API Reference](#-api-reference) - Complete function and type documentation
+- [Package Exports](#-package-exports) - What's available in the package
+- [Development Mode](#-development-mode) - Tools for local development
+- [CLI Tools](#cli-tools) - Command-line utilities for route analysis
+- [Advanced Configuration](#advanced-configuration) - Customization options
+- [Example Scenarios](#example-scenarios) - Common route protection patterns
+- [Compatibility](#-compatibility) - Supported Next.js versions
+- [License](#-license) - MIT License information
+
 ## Features
 
 - **🔒 Convention-based Protection**: Protect routes using directory naming conventions 
@@ -431,6 +448,28 @@ export const config = {
 };
 ```
 
+## 📦 Package Exports
+
+The package exports the following:
+
+```typescript
+{
+  // Main middleware creator
+  createRouteGuardMiddleware,
+  
+  // Utility for chaining middleware
+  chain,
+
+  // Route map generator (for build scripts)
+  generateRouteMap,
+  
+  // Types
+  type RouteGuardOptions,
+  type RouteMap,
+  type NextMiddleware
+}
+```
+
 ## 🛠️ Development Mode
 
 During development, you can use the watch mode to automatically update the route map when files change:
@@ -479,28 +518,6 @@ next-route-guard-watch --app-dir ./src/app --output ./src/lib/route-map.json
 ```
 
 Options: Same as `next-route-guard-generate`
-
-## 📦 Package Exports
-
-The package exports the following:
-
-```typescript
-{
-  // Main middleware creator
-  createRouteGuardMiddleware,
-  
-  // Utility for chaining middleware
-  chain,
-
-  // Route map generator (for build scripts)
-  generateRouteMap,
-  
-  // Types
-  type RouteGuardOptions,
-  type RouteMap,
-  type NextMiddleware
-}
-```
 
 ## Advanced Configuration
 
