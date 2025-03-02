@@ -1,8 +1,8 @@
 # @tradecrush/next-route-guard
 
-> 🚀 **NEW v0.2.0**: Now with trie-based route matching (67× faster) and improved optional catch-all route handling!
+> 🚀 **NEW v0.2.1**: Now with trie-based route matching (67× faster), improved optional catch-all route handling, and complete Next.js version compatibility!
 
-A convention-based route authentication middleware for Next.js applications with App Router (Next.js 13.4.0 and up).
+A convention-based route authentication middleware for Next.js applications with App Router (Next.js 13.4.0 and up), fully tested and compatible with all major Next.js versions.
 
 [![npm version](https://img.shields.io/npm/v/@tradecrush/next-route-guard.svg)](https://www.npmjs.com/package/@tradecrush/next-route-guard)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -20,6 +20,7 @@ A convention-based route authentication middleware for Next.js applications with
 - **🚀 Hyper-Optimized**: Uses trie-based algorithms that are 67× faster than linear search
 - **🛠️ Flexible Configuration**: Customize authentication logic, redirection behavior, and more
 - **👀 Watch Mode**: Development tool that updates route maps as you add or remove routes
+- **✅ Fully Compatible**: Tested with Next.js 13.4.0, 14.0.0 and 15.0.0
 
 ## Why Next Route Guard?
 
@@ -626,6 +627,26 @@ import {
   type MiddlewareFactory
 } from '@tradecrush/next-route-guard';
 ```
+
+## Next.js Version Compatibility
+
+Next Route Guard includes a comprehensive compatibility test suite that creates and tests real Next.js applications using all supported Next.js versions:
+
+| Next.js Version | Status | Notes |
+|-----------------|--------|-------|
+| 13.4.0 | ✅ Compatible | First version with stable App Router |
+| 14.0.0 | ✅ Compatible | Full support for all features |
+| 15.0.0 | ✅ Compatible | Latest major version |
+
+For each version, our automated tests:
+
+1. **Create a real Next.js application** with complex routes including dynamic segments, catch-all routes, etc.
+2. **Generate a route map** using the Next Route Guard CLI 
+3. **Build the Next.js app** to verify middleware compatibility
+4. **Start the app server** and make actual HTTP requests to test route protection
+5. **Verify behavior** of both public and protected routes with and without authentication
+
+These end-to-end tests ensure that Next Route Guard works seamlessly across all supported Next.js versions.
 
 ## Contributing
 
