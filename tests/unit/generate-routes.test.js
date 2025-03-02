@@ -10,7 +10,7 @@ import { execSync } from 'child_process';
 
 const TEST_APP_DIR = path.resolve(__dirname, 'test-app');
 const TEST_OUTPUT_FILE = path.resolve(__dirname, 'test-app/route-map.json');
-const SCRIPT_PATH = path.resolve(__dirname, '../scripts/generate-routes.js');
+const SCRIPT_PATH = path.resolve(__dirname, '../../scripts/generate-routes.js');
 
 // Setup - clean up any previous test files
 function cleanTestDirectory() {

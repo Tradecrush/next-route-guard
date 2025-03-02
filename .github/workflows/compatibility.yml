@@ -1,4 +1,4 @@
-name: Unit Tests
+name: Next.js Compatibility
 
 on:
   push:
@@ -7,40 +7,40 @@ on:
     branches: [ '**' ]  # Run on PRs targeting any branch
 
 jobs:
-  # Test with different Node.js versions
-  unit-tests:
+  # Test compatibility with different Next.js versions
+  compatibility:
     runs-on: ubuntu-latest
-    name: Node ${{ matrix.node }} Test
-
+    name: Next.js ${{ matrix.next }} Compatibility
+    
     strategy:
       matrix:
-        node: [18, 20, 22]
+        next: ['13.4.0', '14.0.0', '15.0.0']
       fail-fast: false  # Continue with other jobs if one fails
-
+      
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Setup Node.js
+    - name: Setup Node.js 20
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node }}
+        node-version: 20
         
     # Create custom cache with explicit key
     - name: Cache npm dependencies
       uses: actions/cache@v3
       with:
         path: ~/.npm
-        key: npm-deps-${{ runner.os }}-node${{ matrix.node }}-${{ hashFiles('**/package-lock.json') }}
+        key: nextjs-compat-${{ runner.os }}-next${{ matrix.next }}-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
-          npm-deps-${{ runner.os }}-node${{ matrix.node }}-
-    
+          nextjs-compat-${{ runner.os }}-next${{ matrix.next }}-
+        
     - name: Install dependencies
       run: npm ci
       
     - name: Build package
       run: npm run build
       
-    - name: Run unit tests
-      run: npm run test:unit
-      timeout-minutes: 5
+    - name: Run compatibility test for Next.js ${{ matrix.next }}
+      run: npm run test:compatibility -- --version=${{ matrix.next }}
+      timeout-minutes: 10

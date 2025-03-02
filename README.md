@@ -6,7 +6,8 @@ A convention-based route authentication middleware for Next.js applications with
 
 [![npm version](https://img.shields.io/npm/v/@tradecrush/next-route-guard.svg)](https://www.npmjs.com/package/@tradecrush/next-route-guard)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://github.com/tradecrush/next-route-guard/workflows/Tests/badge.svg)](https://github.com/tradecrush/next-route-guard/actions?query=workflow%3ATests)
+[![Unit Tests](https://github.com/tradecrush/next-route-guard/actions/workflows/tests.yml/badge.svg)](https://github.com/tradecrush/next-route-guard/actions/workflows/tests.yml)
+[![Next.js Compatibility](https://github.com/tradecrush/next-route-guard/actions/workflows/compatibility.yml/badge.svg)](https://github.com/tradecrush/next-route-guard/actions/workflows/compatibility.yml)
 
 ## Features
 

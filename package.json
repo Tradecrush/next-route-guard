@@ -12,7 +12,9 @@
     "lint": "eslint src --fix",
     "check-types": "tsc --noEmit",
     "test": "vitest run",
-    "test:routes": "node test/run-all-tests.js",
+    "test:unit": "vitest run tests/unit",
+    "test:compatibility": "node tests/compatibility/test-compatibility.js",
+    "test:all": "node tests/run-all-tests.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

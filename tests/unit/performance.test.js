@@ -1,4 +1,4 @@
-import { test, beforeAll } from 'vitest';
+import { test, beforeAll, afterAll } from 'vitest';
 import path from 'path';
 import { execSync } from 'child_process';
 import { NextResponse } from 'next/server';
@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server';
 // Build the package before running tests
 beforeAll(() => {
   try {
-    execSync('npm run build', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') });
+    execSync('npm run build', { stdio: 'inherit', cwd: path.resolve(__dirname, '../..') });
   } catch (error) {
     console.error('Failed to build package:', error);
     throw error;
@@ -19,7 +19,31 @@ beforeAll(() => {
 });
 
 // Import the module - dynamically because we need to build it first
-import * as routeAuth from '../dist/index.js';
+import * as routeAuth from '../../dist/index.js';
+
+// Add clean up after all tests
+import fs from 'fs';
+// Clean up the test directory
+function cleanTestDirectories() {
+  const testDirs = [
+    path.resolve(__dirname, 'test-app'),
+    path.resolve(__dirname, 'test-app-advanced')
+  ];
+  
+  for (const dir of testDirs) {
+    try {
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    } catch (error) {
+      console.error(`Error cleaning directory ${dir}:`, error);
+    }
+  }
+}
+
+afterAll(() => {
+  cleanTestDirectories();
+});
 
 // Create a mock NextRequest class for testing
 class MockNextRequest {
@@ -43,7 +67,7 @@ let triePerformanceResults = {};
 
 // Performance test function
 async function runPerformanceTest() {
-  console.log('\n=€ Running performance comparison test...');
+  console.log('\n=ï¿½ Running performance comparison test...');
   
   // Create a larger route map for performance testing
   const largeRouteMap = { public: [], protected: [] };
