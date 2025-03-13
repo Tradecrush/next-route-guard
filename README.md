@@ -1,6 +1,6 @@
 # @tradecrush/next-route-guard
 
-> 🚀 **NEW v0.2.3**: API name consistency for better alignment with the package name
+> 🚀 **NEW v0.2.4**: Improved nested optional catch-all route handling, enhanced tests, fixed inconsistencies, and code cleanup
 >
 > ⚠️ **BREAKING CHANGE**: The primary function and types have been renamed:
 > - `createRouteAuthMiddleware` → `createRouteGuardMiddleware`
@@ -119,7 +119,7 @@ export default createRouteGuardMiddleware({
     // Redirect to login with return URL
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    url.searchParams.set('returnTo', request.nextUrl.pathname);
+    url.searchParams.set('from', request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
 });
@@ -597,13 +597,13 @@ createRouteGuardMiddleware({
     // For dashboard routes, redirect to a custom login page
     if (request.nextUrl.pathname.startsWith('/dashboard/')) {
       url.pathname = '/dashboard-login';
-      url.searchParams.set('returnTo', request.nextUrl.pathname);
+      url.searchParams.set('from', request.nextUrl.pathname);
       return NextResponse.redirect(url);
     }
     
     // Default login redirect
     url.pathname = '/login';
-    url.searchParams.set('returnTo', request.nextUrl.pathname);
+    url.searchParams.set('from', request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
 });
