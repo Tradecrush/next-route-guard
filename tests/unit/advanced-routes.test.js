@@ -1,12 +1,14 @@
-import { describe, test, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
 import {
-  cleanTestDirectory as cleanDir,
+  cleanTestDirectory,
   buildPackageBeforeTests,
   MockNextRequest,
-  setupNextResponseMocks
+  setupNextResponseMocks,
+  setupTestEnvironment,
+  createPageFile,
+  runGenerateRoutes
 } from './test-helpers';
 
 // Ensure package is built before running tests
@@ -25,22 +27,8 @@ const TEST_APP_DIR = path.resolve(__dirname, 'test-app-advanced');
 const TEST_OUTPUT_FILE = path.resolve(__dirname, 'test-app-advanced/route-map.json');
 const SCRIPT_PATH = path.resolve(__dirname, '../../scripts/generate-routes.js');
 
-// Setup - clean up any previous test files
-// Use the shared helper directly and ensure test directory exists
-function prepareTestDirectory() {
-  cleanDir(TEST_APP_DIR);
-  if (!fs.existsSync(TEST_APP_DIR)) {
-    fs.mkdirSync(TEST_APP_DIR, { recursive: true });
-  }
-}
-
-// Helper to create a page file
-function createPageFile(dirPath, extension = 'js') {
-  fs.writeFileSync(
-    path.join(dirPath, `page.${extension}`),
-    `export default function Page() { return <div>Page</div> }`
-  );
-}
+// Initialize the test environment
+setupTestEnvironment(TEST_APP_DIR);
 
 // Create test app structure with advanced routes
 function createAdvancedTestAppStructure() {
@@ -112,38 +100,7 @@ function createAdvancedTestAppStructure() {
   createPageFile(path.join(TEST_APP_DIR, '(protected)', 'react-routes', 'tsx-route'), 'tsx');
 }
 
-// Run the generate-routes script
-function runGenerateRoutes() {
-  try {
-    // Use pipe instead of inherit for better CI compatibility
-    const output = execSync(`node ${SCRIPT_PATH} --app-dir "${TEST_APP_DIR}" --output "${TEST_OUTPUT_FILE}"`, {
-      encoding: 'utf8'
-    });
-    console.log('Script output:', output);
 
-    return JSON.parse(fs.readFileSync(TEST_OUTPUT_FILE, 'utf8'));
-  } catch (error) {
-    console.error('Error running generate-routes:', error);
-    if (error.stdout) console.error('Script stdout:', error.stdout);
-    if (error.stderr) console.error('Script stderr:', error.stderr);
-
-    // Fallback for Node 20 CI environments: Try using direct route map generation
-    console.log('Attempting direct route map generation as fallback...');
-    try {
-      // Generate route map using the built-in function from the project
-      const { generateRouteMap } = require('../../dist/index.js');
-      const { routeMap } = generateRouteMap(TEST_APP_DIR, ['(public)'], ['(protected)']);
-
-      // Write to output file
-      fs.writeFileSync(TEST_OUTPUT_FILE, JSON.stringify(routeMap, null, 2));
-
-      return routeMap;
-    } catch (fallbackError) {
-      console.error('Fallback attempt also failed:', fallbackError);
-      throw error; // Throw the original error
-    }
-  }
-}
 
 // Set up Next.js response mocks
 setupNextResponseMocks();
@@ -153,18 +110,12 @@ setupNextResponseMocks();
 
 describe('Advanced route testing', () => {
   beforeEach(() => {
-    // Clean up and create fresh test app structure before each test
-    prepareTestDirectory();
+    // Create fresh test app structure before each test
     createAdvancedTestAppStructure();
   });
 
-  afterAll(() => {
-    // Use helper for cleanup when tests are done
-    cleanDir(TEST_APP_DIR);
-  });
-
-  test('should generate correct route map for complex patterns', () => {
-    const routeMap = runGenerateRoutes();
+  test('should correctly identify public and protected routes in complex nested directory structures', () => {
+    const routeMap = runGenerateRoutes(TEST_APP_DIR, TEST_OUTPUT_FILE);
 
     // Expected public and protected routes based on actual output
     const expectedPublicRoutes = [
@@ -178,7 +129,7 @@ describe('Advanced route testing', () => {
     ];
 
     const expectedProtectedRoutes = [
-      '/', // Root route is protected by default
+      '/',
       '/dashboard',
       '/dashboard/@stats', // Parallel routes are included
       '/dashboard/@activity', // Parallel routes are included
@@ -203,21 +154,21 @@ describe('Advanced route testing', () => {
     }
   });
 
-  test('should handle parallel routes correctly', () => {
-    const routeMap = runGenerateRoutes();
+  test('should correctly identify parallel routes with @ prefix as protected or public based on their group', () => {
+    const routeMap = runGenerateRoutes(TEST_APP_DIR, TEST_OUTPUT_FILE);
     expect(routeMap.protected).toContain('/dashboard/@stats');
     expect(routeMap.protected).toContain('/dashboard/@activity');
   });
 
-  test('should handle route protection inheritance', () => {
-    const routeMap = runGenerateRoutes();
+  test('should prioritize innermost route group protection level over outer groups', () => {
+    const routeMap = runGenerateRoutes(TEST_APP_DIR, TEST_OUTPUT_FILE);
     // After our fix to prioritize innermost groups, `/help/admin` should now be in protected routes
     // as (protected) group is more specific than (public)
     expect(routeMap.protected).toContain('/help/admin');
   });
 
-  test('should detect different file extensions', () => {
-    const routeMap = runGenerateRoutes();
+  test('should correctly parse routes with different file extensions (jsx, tsx) in the Next.js app directory', () => {
+    const routeMap = runGenerateRoutes(TEST_APP_DIR, TEST_OUTPUT_FILE);
     expect(routeMap.protected).toContain('/react-routes/jsx-route');
     expect(routeMap.protected).toContain('/react-routes/tsx-route');
   });
@@ -229,7 +180,7 @@ describe('Advanced route testing', () => {
     createPageFile(path.join(TEST_APP_DIR, '(public)', 'custom-public-test'));
     createPageFile(path.join(TEST_APP_DIR, '(protected)', 'custom-protected-test'));
 
-    const updatedRouteMap = runGenerateRoutes();
+    const updatedRouteMap = runGenerateRoutes(TEST_APP_DIR, TEST_OUTPUT_FILE);
     expect(updatedRouteMap.public).toContain('/custom-public-test');
     expect(updatedRouteMap.protected).toContain('/custom-protected-test');
   });
@@ -239,7 +190,7 @@ describe('Advanced route testing', () => {
     const { createRouteGuardMiddleware } = require('../../dist');
 
     // Generate route map
-    const routeMap = runGenerateRoutes();
+    const routeMap = runGenerateRoutes(TEST_APP_DIR, TEST_OUTPUT_FILE);
 
     // Create middleware with a simple authentication check
     const middleware = createRouteGuardMiddleware({

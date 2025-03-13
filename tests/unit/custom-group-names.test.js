@@ -1,12 +1,14 @@
-import { describe, test, expect, beforeEach, afterAll } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
 import {
-  cleanTestDirectory as cleanDir,
+  cleanTestDirectory,
   buildPackageBeforeTests,
   MockNextRequest,
-  setupNextResponseMocks
+  setupNextResponseMocks,
+  setupTestEnvironment,
+  createPageFile,
+  runGenerateRoutesWithCustomPatterns
 } from './test-helpers';
 
 // Ensure package is built before running tests
@@ -21,84 +23,13 @@ const TEST_APP_DIR = path.resolve(__dirname, 'test-app-custom-groups');
 const TEST_OUTPUT_FILE = path.resolve(__dirname, 'test-app-custom-groups/route-map.json');
 const SCRIPT_PATH = path.resolve(__dirname, '../../scripts/generate-routes.js');
 
-// Setup - clean up any previous test files
-// Use the shared helper directly and ensure test directory exists
-function prepareTestDirectory() {
-  cleanDir(TEST_APP_DIR);
-  if (!fs.existsSync(TEST_APP_DIR)) {
-    fs.mkdirSync(TEST_APP_DIR, { recursive: true });
-  }
-}
-
-// Helper to create a page file
-function createPageFile(dirPath, extension = 'js') {
-  fs.writeFileSync(
-    path.join(dirPath, `page.${extension}`),
-    `export default function Page() { return <div>Page</div> }`
-  );
-}
-
-// Run the generate-routes script with custom patterns
-function runGenerateRoutesWithCustomPatterns(publicPatterns, protectedPatterns) {
-  try {
-    // Build command with custom patterns
-    let command = `node ${SCRIPT_PATH} --app-dir "${TEST_APP_DIR}" --output "${TEST_OUTPUT_FILE}"`;
-
-    if (publicPatterns) {
-      command += ` --public "${publicPatterns}"`;
-    }
-
-    if (protectedPatterns) {
-      command += ` --protected "${protectedPatterns}"`;
-    }
-
-    console.log(`Running command: ${command}`);
-
-    // Capture output instead of using inherit for better CI compatibility
-    const output = execSync(command, { encoding: 'utf8' });
-    console.log('Script output:', output);
-
-    return JSON.parse(fs.readFileSync(TEST_OUTPUT_FILE, 'utf8'));
-  } catch (error) {
-    console.error('Error running generate-routes:', error);
-    if (error.stdout) console.error('Script stdout:', error.stdout);
-    if (error.stderr) console.error('Script stderr:', error.stderr);
-
-    // Fallback for Node 20 CI environments: Try using direct route map generation
-    console.log('Attempting direct route map generation as fallback...');
-    try {
-      // Generate route map using the built-in function from the project
-      const { generateRouteMap } = require('../../dist/index.js');
-      const { routeMap } = generateRouteMap(
-        TEST_APP_DIR,
-        publicPatterns ? publicPatterns.split(',') : ['(public)'],
-        protectedPatterns ? protectedPatterns.split(',') : ['(protected)']
-      );
-
-      // Write to output file
-      fs.writeFileSync(TEST_OUTPUT_FILE, JSON.stringify(routeMap, null, 2));
-
-      return routeMap;
-    } catch (fallbackError) {
-      console.error('Fallback attempt also failed:', fallbackError);
-      throw error; // Throw the original error
-    }
-  }
-}
+// Initialize the test environment
+setupTestEnvironment(TEST_APP_DIR);
 
 // Set up Next.js response mocks
 setupNextResponseMocks();
 
 describe('Custom Group Names', () => {
-  beforeEach(() => {
-    // Clean up and create fresh test directory before each test
-    prepareTestDirectory();
-  });
-
-  afterAll(() => {
-    // Use helper for cleanup when tests are done
-    cleanDir(TEST_APP_DIR);
-  });
 
   test('should handle comma-separated custom group names', () => {
     // Create directories with multiple group name types
@@ -118,7 +49,7 @@ describe('Custom Group Names', () => {
     createPageFile(path.join(TEST_APP_DIR, '(auth)', 'auth-page'));
     createPageFile(path.join(TEST_APP_DIR, '(admin)', 'admin-page'));
 
-    const routeMap = runGenerateRoutesWithCustomPatterns('(open),(guest)', '(auth),(admin)');
+    const routeMap = runGenerateRoutesWithCustomPatterns(TEST_APP_DIR, TEST_OUTPUT_FILE, '(open),(guest)', '(auth),(admin)');
 
     // Check public routes
     expect(routeMap.public).toContain('/open-page');
@@ -146,7 +77,7 @@ describe('Custom Group Names', () => {
     createPageFile(path.join(TEST_APP_DIR, '(auth)', 'protected-section'));
     createPageFile(path.join(TEST_APP_DIR, '(auth)', 'protected-section', '(open)', 'nested-open'));
 
-    const routeMap = runGenerateRoutesWithCustomPatterns('(open)', '(auth)');
+    const routeMap = runGenerateRoutesWithCustomPatterns(TEST_APP_DIR, TEST_OUTPUT_FILE, '(open)', '(auth)');
 
     // After fixing the implementation to prioritize innermost (most specific) groups:
 
@@ -183,6 +114,8 @@ describe('Custom Group Names', () => {
 
     // Use custom patterns with unusual names
     const routeMap = runGenerateRoutesWithCustomPatterns(
+      TEST_APP_DIR,
+      TEST_OUTPUT_FILE,
       '(foo-bar),(weird_stuff)',
       '(restricted-area),(premium_content)'
     );
@@ -205,7 +138,7 @@ describe('Custom Group Names', () => {
     createPageFile(path.join(TEST_APP_DIR, '(member)', 'profile'));
 
     // Generate route map with custom groups
-    const routeMap = runGenerateRoutesWithCustomPatterns('(guest)', '(member)');
+    const routeMap = runGenerateRoutesWithCustomPatterns(TEST_APP_DIR, TEST_OUTPUT_FILE, '(guest)', '(member)');
 
     // Import middleware creator
     const { createRouteGuardMiddleware } = require('../../dist');

@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeAll, vi } from 'vitest';
 import { NextResponse } from 'next/server';
+import path from 'path';
 import { buildPackageBeforeTests, setupTestEnvironment, MockNextRequest, setupNextResponseMocks } from './test-helpers';
 
 /**
@@ -14,8 +15,11 @@ buildPackageBeforeTests();
 // Import the module after building
 import * as routeGuard from '../../dist/index.js';
 
-// Setup test environment
-setupTestEnvironment();
+// Define the test directory for this specific test file
+const TEST_APP_DIR = path.resolve(__dirname, 'test-app-middleware-chaining');
+
+// Setup test environment with the specific test directory
+setupTestEnvironment(TEST_APP_DIR);
 
 // Setup Next.js response mocks
 setupNextResponseMocks();
@@ -27,7 +31,7 @@ const testRouteMap = {
 };
 
 describe('Middleware Chaining', () => {
-  test('should chain multiple middleware functions correctly', async () => {
+  test('should execute middleware functions in correct order with preserved context and headers', async () => {
     // Create tracking array for middleware execution order
     const executionOrder = [];
 

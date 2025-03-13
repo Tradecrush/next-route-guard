@@ -7,25 +7,22 @@ import { cleanTestDirectory, buildPackageBeforeTests, setupTestEnvironment } fro
 // Ensure package is built before running tests
 buildPackageBeforeTests();
 
-// Setup test environment (cleanup before tests and after all)
-setupTestEnvironment();
+// Define the test directory for this specific test file
+const TEST_APP_DIR = path.resolve(__dirname, 'test-app-generate-routes');
+const TEST_OUTPUT_FILE = path.resolve(TEST_APP_DIR, 'route-map.json');
+
+// Setup test environment with the specific test directory
+setupTestEnvironment(TEST_APP_DIR);
 
 /**
  * Test file for the next-route-guard generate-routes.js script
  * Tests various Next.js route patterns including dynamic routes
  */
 
-const TEST_APP_DIR = path.resolve(__dirname, 'test-app');
-const TEST_OUTPUT_FILE = path.resolve(__dirname, 'test-app/route-map.json');
 const SCRIPT_PATH = path.resolve(__dirname, '../../scripts/generate-routes.js');
 
-// Helper function to create a page file
-function createPageFile(dirPath, extension = 'js') {
-  fs.writeFileSync(
-    path.join(dirPath, `page.${extension}`),
-    `export default function Page() { return <div>Page</div> }`
-  );
-}
+// Import createPageFile from test-helpers instead of defining it locally
+import { createPageFile, runGenerateRoutes as runGenerateRoutesHelper } from './test-helpers';
 
 // Helper to create test app structure
 function createTestAppStructure() {
@@ -77,41 +74,9 @@ function createTestAppStructure() {
   }
 }
 
-// Run the generate-routes script
+// Use the runGenerateRoutes from test-helpers instead
 function runGenerateRoutes() {
-  try {
-    // Try direct route map generation first for Node 20 compatibility
-    try {
-      // Generate route map using the built-in function from the project
-      const { generateRouteMap } = require('../../dist/index.js');
-
-      const result = generateRouteMap(TEST_APP_DIR, ['(public)'], ['(protected)']);
-
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      const { routeMap } = result;
-
-      // Write to output file
-      fs.writeFileSync(TEST_OUTPUT_FILE, JSON.stringify(routeMap, null, 2));
-
-      return routeMap;
-    } catch (directError) {
-      // Fall back to using the script
-      const output = execSync(`node ${SCRIPT_PATH} --app-dir "${TEST_APP_DIR}" --output "${TEST_OUTPUT_FILE}"`, {
-        encoding: 'utf8'
-      });
-      console.log('Script output:', output);
-
-      return JSON.parse(fs.readFileSync(TEST_OUTPUT_FILE, 'utf8'));
-    }
-  } catch (error) {
-    console.error('Error generating route map:', error);
-    if (error.stdout) console.error('Script stdout:', error.stdout);
-    if (error.stderr) console.error('Script stderr:', error.stderr);
-    throw error;
-  }
+  return runGenerateRoutesHelper(TEST_APP_DIR, TEST_OUTPUT_FILE);
 }
 
 describe('Basic route testing', () => {
@@ -123,7 +88,7 @@ describe('Basic route testing', () => {
     cleanTestDirectory(TEST_APP_DIR);
   });
 
-  test('should generate the correct basic route map', () => {
+  test('should identify public and protected routes based on (public) and (protected) directory groups', () => {
     try {
       // Setup for this specific test
       if (fs.existsSync(TEST_APP_DIR)) {
@@ -168,7 +133,7 @@ describe('Basic route testing', () => {
     }
   });
 
-  test('should handle route group inheritance correctly', () => {
+  test('should properly inherit route protection from parent group directories to nested subdirectories', () => {
     try {
       // Setup for this specific test
       if (fs.existsSync(TEST_APP_DIR)) {
@@ -191,7 +156,7 @@ describe('Basic route testing', () => {
     }
   });
 
-  test('should detect various file extensions', () => {
+  test('should detect routes with various file extensions including tsx, jsx, and ts', () => {
     // Test with different file extensions
     const extensions = ['tsx', 'jsx', 'ts'];
 

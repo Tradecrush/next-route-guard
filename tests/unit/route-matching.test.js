@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { NextResponse } from 'next/server';
+import path from 'path';
 import {
   buildPackageBeforeTests,
   setupTestEnvironment,
@@ -23,8 +24,11 @@ buildPackageBeforeTests();
 // Import the module after building
 import * as routeGuard from '../../dist/index.js';
 
-// Setup test environment
-setupTestEnvironment();
+// Define the test directory for this specific test file
+const TEST_APP_DIR = path.resolve(__dirname, 'test-app-route-matching');
+
+// Setup test environment with the specific test directory
+setupTestEnvironment(TEST_APP_DIR);
 
 // Setup Next.js response mocks
 setupNextResponseMocks();
@@ -109,9 +113,9 @@ const complexTestCases = [
 ];
 
 // Complex route matching tests using Vitest
-describe('Route Matching Tests', () => {
+describe('Complex Route Pattern Matching Tests', () => {
   // Group tests by category for better organization
-  describe('Rest segments after catch-all', () => {
+  describe('Routes with additional segments after catch-all parameters', () => {
     const catchAllTests = complexTestCases.slice(0, 5);
     test.each(catchAllTests)(
       '$desc - $url should be $expected ? protected : public',
@@ -155,7 +159,7 @@ describe('Route Matching Tests', () => {
     );
   });
 
-  describe('Mixed dynamic and catch-all', () => {
+  describe('Routes combining dynamic segments with catch-all patterns', () => {
     const mixedPatternTests = complexTestCases.slice(16, 18);
     test.each(mixedPatternTests)(
       '$desc - $url should be $expected ? protected : public',
@@ -166,7 +170,7 @@ describe('Route Matching Tests', () => {
     );
   });
 
-  describe('Optional catch-all with rest segments', () => {
+  describe('Optional catch-all patterns with additional segments after catch-all', () => {
     const optionalCatchAllTests = complexTestCases.slice(18, 22);
     test.each(optionalCatchAllTests)(
       '$desc - $url should be $expected ? protected : public',
@@ -177,7 +181,7 @@ describe('Route Matching Tests', () => {
     );
   });
 
-  describe('Public catch-all with protected edit segment', () => {
+  describe('Public catch-all routes containing protected edit segments', () => {
     const publicCatchAllTests = complexTestCases.slice(22, 27);
     test.each(publicCatchAllTests)(
       '$desc - $url should be $expected ? protected : public',
@@ -188,7 +192,7 @@ describe('Route Matching Tests', () => {
     );
   });
 
-  describe('Edge cases', () => {
+  describe('Edge cases including unknown paths and API routes', () => {
     const edgeCaseTests = complexTestCases.slice(27);
     test.each(edgeCaseTests)(
       '$desc - $url should be $expected ? protected : public',
@@ -200,7 +204,7 @@ describe('Route Matching Tests', () => {
   });
 
   describe('Error Handling', () => {
-    test('should handle empty route map', async () => {
+    test('should default to protecting all routes when route map is empty', async () => {
       const emptyRouteMap = {
         public: [],
         protected: []
@@ -220,7 +224,7 @@ describe('Route Matching Tests', () => {
       expect(response.headers.get('location')).toContain('/login');
     });
 
-    test('should support custom URL exclusions', async () => {
+    test('should skip middleware processing for URLs matching exclusion patterns', async () => {
       const routeMap = {
         public: ['/about'],
         protected: ['/dashboard']

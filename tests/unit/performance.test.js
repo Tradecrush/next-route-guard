@@ -1,4 +1,5 @@
 import { test, describe, expect } from 'vitest';
+import path from 'path';
 import { buildPackageBeforeTests, setupTestEnvironment, MockNextRequest, setupNextResponseMocks } from './test-helpers';
 import { NextResponse } from 'next/server';
 
@@ -13,8 +14,11 @@ buildPackageBeforeTests();
 // Import the module after building
 import * as routeGuard from '../../dist/index.js';
 
-// Setup test environment
-setupTestEnvironment();
+// Define the test directory for this specific test file
+const TEST_APP_DIR = path.resolve(__dirname, 'test-app-performance');
+
+// Setup test environment with the specific test directory
+setupTestEnvironment(TEST_APP_DIR);
 
 // Setup Next.js response mocks
 setupNextResponseMocks();
@@ -26,7 +30,7 @@ import fs from 'fs';
 let _triePerformanceResults = {};
 
 describe('Performance Tests', () => {
-  test('trie-based routing performance test', async () => {
+  test('should verify route matching performance with large route sets and complex patterns', async () => {
     console.log('\n=== Running performance comparison test...');
 
     // Create a larger route map for performance testing
