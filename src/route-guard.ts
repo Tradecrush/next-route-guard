@@ -3,8 +3,8 @@
  * This module contains the runtime logic for checking if a route should be protected
  * and enforcing authentication based on the route map generated at build time.
  */
-import { NextResponse, type NextRequest } from 'next/server';
-import type { RouteGuardOptions, RouteMap } from './types';
+import { type NextRequest, NextResponse } from "next/server";
+import type { RouteGuardOptions, RouteMap } from "./types";
 
 /**
  * Default route to redirect to when authentication fails
@@ -29,8 +29,6 @@ interface RouteNode {
   catchAllChild?: {
     node: RouteNode;
     isOptional: boolean;
-    // Segments after the catch-all (e.g., [...slug]/edit)
-    restSegments?: Map<string, RouteNode>;
   };
 }
 
@@ -64,7 +62,7 @@ export function createRouteGuardMiddleware(options: RouteGuardOptions) {
   const routeTrie = buildRouteTrie(routeMap);
 
   // Return the middleware function that will be executed for each request
-  return async function routeAuthMiddleware(request: NextRequest) {
+  return async function routeGuardMiddleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
 
     // Skip authentication check for excluded URL patterns (e.g., API routes)
@@ -135,123 +133,171 @@ function buildRouteTrie(routeMap: RouteMap): RouteNode {
  * @param isProtected - Whether this route is protected
  */
 function addRouteToTrie(root: RouteNode, route: string, isProtected: boolean): void {
-  // Handle root route specially
-  if (route === '/') {
-    root.isProtected = isProtected;
-    return;
-  }
+  // Split the path into segments and remove empty segments
+  const segments = route.split('/').filter((segment) => segment !== '');
 
-  // Split path into segments
-  const segments = route.split('/').filter(Boolean);
-  let currentNode = root;
+  let current = root;
 
-  // Find the index of any catch-all segment
-  const catchAllIndex = segments.findIndex((s) => s.startsWith('[...') || s.startsWith('[[...'));
+  // Process each segment of the path
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i]!;
 
-  // Process segments before catch-all normally
-  const segmentsBeforeCatchAll = catchAllIndex === -1 ? segments : segments.slice(0, catchAllIndex);
+    // Handle catch-all routes: [...slug] or [[...slug]]
+    if (segment.startsWith('[...') || segment.startsWith('[[...')) {
+      const isOptional = segment.startsWith('[[...');
 
-  for (let i = 0; i < segmentsBeforeCatchAll.length; i++) {
-    const segment = segmentsBeforeCatchAll[i];
-    if (!segment) continue; // Skip empty segments
-
-    const isLastSegment = i === segments.length - 1;
-
-    // Regular dynamic segment [param]
-    if (
-      segment.startsWith('[') &&
-      segment.endsWith(']') &&
-      !segment.startsWith('[...') &&
-      !segment.startsWith('[[...')
-    ) {
-      if (!currentNode.dynamicChild) {
-        currentNode.dynamicChild = {
-          children: new Map(),
-          isProtected: isLastSegment ? isProtected : undefined
+      // Create a catch-all node if it doesn't exist
+      if (!current.catchAllChild) {
+        current.catchAllChild = {
+          node: { children: new Map() },
+          isOptional
         };
-      } else if (isLastSegment) {
-        currentNode.dynamicChild.isProtected = isProtected;
       }
-      currentNode = currentNode.dynamicChild;
+
+      // If this is the last segment, mark protection status
+      if (i === segments.length - 1) {
+        current.catchAllChild.node.isProtected = isProtected;
+      }
+
+      // Continue adding remaining segments even after a catch-all
+      current = current.catchAllChild.node;
     }
-    // Regular segment
+    // Handle dynamic segments: [param]
+    else if (segment.startsWith('[') && segment.endsWith(']')) {
+      // Create a dynamic node if it doesn't exist
+      if (!current.dynamicChild) {
+        current.dynamicChild = { children: new Map() };
+      }
+
+      // If this is the last segment, mark protection status
+      if (i === segments.length - 1) {
+        current.dynamicChild.isProtected = isProtected;
+      }
+
+      // Move to the dynamic child for next iteration
+      current = current.dynamicChild;
+    }
+    // Handle regular segments
     else {
-      if (!currentNode.children.has(segment)) {
-        currentNode.children.set(segment, {
-          children: new Map(),
-          isProtected: isLastSegment ? isProtected : undefined
-        });
-      } else if (isLastSegment) {
-        const childNode = currentNode.children.get(segment);
-        if (childNode) {
-          childNode.isProtected = isProtected;
-        }
+      // Create a regular child if it doesn't exist
+      if (!current.children.has(segment)) {
+        current.children.set(segment, { children: new Map() });
       }
-      const nextNode = currentNode.children.get(segment);
-      if (nextNode) {
-        currentNode = nextNode;
+
+      // If this is the last segment, mark protection status
+      if (i === segments.length - 1) {
+        const child = current.children.get(segment)!;
+        child.isProtected = isProtected;
       }
+
+      // Move to the child for next iteration
+      current = current.children.get(segment)!;
     }
   }
 
-  // If there's a catch-all segment
-  if (catchAllIndex !== -1) {
-    const catchAllSegment = segments[catchAllIndex];
-    if (catchAllSegment) {
-      const isOptional = catchAllSegment.startsWith('[[...');
-
-      // Create catch-all node if it doesn't exist
-      if (!currentNode.catchAllChild) {
-        currentNode.catchAllChild = {
-          node: {
-            children: new Map(),
-            isProtected: undefined
-          },
-          isOptional,
-          restSegments: new Map()
-        };
-      }
-    }
-
-    // If there are segments after the catch-all
-    if (catchAllIndex < segments.length - 1 && currentNode.catchAllChild && currentNode.catchAllChild.restSegments) {
-      const afterCatchAll = segments.slice(catchAllIndex + 1);
-      let restSegments = currentNode.catchAllChild.restSegments;
-
-      // Add nodes for segments after catch-all
-      let restNode: RouteNode | undefined;
-
-      for (let i = 0; i < afterCatchAll.length; i++) {
-        const segment = afterCatchAll[i];
-        if (!segment) continue; // Skip empty segments
-
-        const isLastSegment = i === afterCatchAll.length - 1;
-
-        if (!restSegments.has(segment)) {
-          restSegments.set(segment, {
-            children: new Map(),
-            isProtected: isLastSegment ? isProtected : undefined
-          });
-        } else if (isLastSegment) {
-          const segmentNode = restSegments.get(segment);
-          if (segmentNode) {
-            segmentNode.isProtected = isProtected;
-          }
-        }
-
-        restNode = restSegments.get(segment);
-
-        // If not the last segment and we have a valid node, prepare for more
-        if (!isLastSegment && restNode) {
-          restSegments = restNode.children;
-        }
-      }
-    }
-    // If catch-all is the last segment
-    else if (currentNode.catchAllChild) {
-      currentNode.catchAllChild.node.isProtected = isProtected;
-    }
+  // For root routes like '/' that don't have segments
+  if (segments.length === 0) {
+    root.isProtected = isProtected;
   }
+}
+
+/**
+ * Improved visualization function for route tries with correct indentation
+ *
+ * @param trie - The route trie to visualize
+ * @param options - Visualization options
+ * @returns A string representation of the trie
+ */
+function visualizeTrie(
+  trie: RouteNode,
+  options: {
+    indent?: string;
+    path?: string;
+  } = {}
+): string {
+  const { indent = '', path = '' } = options;
+
+  let output = '';
+  const protectionStatus =
+    trie.isProtected !== undefined ? (trie.isProtected ? '🔒 Protected' : '🔓 Public') : '❓ Default';
+
+  // Root node special case
+  if (indent === '') {
+    output += `Root (${protectionStatus})\n`;
+  }
+
+  // Convert Map entries to array for easier handling
+  const children = Array.from(trie.children.entries());
+
+  // Process regular children
+  children.forEach(([segment, childNode], index) => {
+    const isLastChild = !trie.dynamicChild && !trie.catchAllChild && index === children.length - 1;
+    const childPath = path + '/' + segment;
+    const childStatus =
+      childNode.isProtected !== undefined ? (childNode.isProtected ? '🔒 Protected' : '🔓 Public') : '❓ Default';
+
+    // Use different connectors based on position
+    const connector = isLastChild ? '└── ' : '├── ';
+    output += `${indent}${connector}${segment} (${childStatus})\n`;
+
+    // Child indentation changes based on whether this is the last child
+    const childIndent = indent + (isLastChild ? '    ' : '│   ');
+
+    // Recurse into child
+    output += visualizeTrie(childNode, {
+      indent: childIndent,
+      path: childPath
+    });
+  });
+
+  // Process dynamic parameter child
+  if (trie.dynamicChild) {
+    const isLastChild = !trie.catchAllChild;
+    const childStatus =
+      trie.dynamicChild.isProtected !== undefined
+        ? trie.dynamicChild.isProtected
+          ? '🔒 Protected'
+          : '🔓 Public'
+        : '❓ Default';
+
+    // Use different connectors based on position
+    const connector = isLastChild ? '└── ' : '├── ';
+    output += `${indent}${connector}[param] (${childStatus})\n`;
+
+    // Child indentation changes based on whether this is the last child
+    const childIndent = indent + (isLastChild ? '    ' : '│   ');
+
+    // Recurse into dynamic child
+    output += visualizeTrie(trie.dynamicChild, {
+      indent: childIndent,
+      path: path + '/[param]'
+    });
+  }
+
+  // Process catch-all child (always the last child if it exists)
+  if (trie.catchAllChild) {
+    const catchAllType = trie.catchAllChild.isOptional ? '[[...slug]]' : '[...slug]';
+    const optionalText = trie.catchAllChild.isOptional ? ' (optional)' : '';
+    const childStatus =
+      trie.catchAllChild.node.isProtected !== undefined
+        ? trie.catchAllChild.node.isProtected
+          ? '🔒 Protected'
+          : '🔓 Public'
+        : '❓ Default';
+
+    output += `${indent}└── ${catchAllType}${optionalText} (${childStatus})\n`;
+
+    // Catch-all is always the last child, so no need for vertical lines in indentation
+    const childIndent = indent + '    ';
+
+    // Recurse into catch-all child
+    output += visualizeTrie(trie.catchAllChild.node, {
+      indent: childIndent,
+      path: path + '/' + catchAllType
+    });
+  }
+
+  return output;
 }
 
 /**
@@ -276,151 +322,90 @@ function matchPath(path: string, routeTrie: RouteNode, defaultProtected: boolean
 
   // Split path into segments
   const segments = cleanPath.split('/').filter(Boolean);
-  let isProtected = defaultProtected;
 
-  // Start at the root node (which may have its own protection status)
-  let currentNode = routeTrie;
-  if (currentNode.isProtected !== undefined) {
-    isProtected = currentNode.isProtected;
-  }
+  // Use recursive matching with backtracking
+  return findMatch(routeTrie, segments, 0, defaultProtected);
+}
 
-  // Match path segments
-  let matchIndex = 0;
-
-  // Special case for segments like `/admin` that match `/admin/[[...slug]]`
-  // When we have a route like /admin/[[...slug]], the trie has structure:
-  // root -> 'admin' -> catchAllChild with isOptional=true
-  // So we need to check if the 'admin' node has a catchAllChild before going into the segment matching
-  if (segments.length === 1 && segments[0] && currentNode.children.has(segments[0])) {
-    const firstSegmentNode = currentNode.children.get(segments[0]);
-    if (firstSegmentNode && firstSegmentNode.catchAllChild && firstSegmentNode.catchAllChild.isOptional) {
-      // We're at the exact node that has the optional catch-all child
-      if (firstSegmentNode.catchAllChild.node.isProtected !== undefined) {
-        return firstSegmentNode.catchAllChild.node.isProtected;
-      }
+/**
+ * Recursively find the best match for segments in the route trie
+ *
+ * @param node - Current node in the trie
+ * @param segments - Path segments
+ * @param index - Current segment index
+ * @param defaultProtected - Default protection status
+ * @returns The protection status for the best matched path
+ */
+function findMatch(node: RouteNode, segments: string[], index: number, defaultProtected: boolean): boolean {
+  // If we reached the end of the path, return the protection status of this node
+  if (index >= segments.length) {
+    // If this node has an explicit protection status, use it
+    if (node.isProtected !== undefined) {
+      return node.isProtected;
+    }
+    // If this node has an optional catch-all child, use its protection status
+    else if (node.catchAllChild && node.catchAllChild.isOptional) {
+      return node.catchAllChild.node.isProtected ?? defaultProtected;
+    }
+    // Otherwise, use the default
+    else {
+      return defaultProtected;
     }
   }
 
-  while (matchIndex < segments.length) {
-    const segment = segments[matchIndex];
-    let matched = false;
+  // Get the current segment
+  const segment = segments[index]!;
 
-    // 1. Try exact match first
-    if (segment && currentNode.children.has(segment)) {
-      const nextNode = currentNode.children.get(segment);
-      if (nextNode) {
-        currentNode = nextNode;
-        matched = true;
-        matchIndex++;
-      }
-    }
-    // 2. Try dynamic segment
-    else if (currentNode.dynamicChild) {
-      currentNode = currentNode.dynamicChild;
-      matched = true;
-      matchIndex++;
-    }
-    // 3. Try catch-all
-    else if (currentNode.catchAllChild) {
-      // Non-optional catch-all requires at least one segment
-      if (!currentNode.catchAllChild.isOptional && matchIndex >= segments.length) {
-        break;
-      }
+  // Check for exact match in children
+  if (node.children.has(segment)) {
+    // Continue matching with the next segment
+    const childNode = node.children.get(segment)!;
+    return findMatch(childNode, segments, index + 1, defaultProtected);
+  }
+  // Check for dynamic parameter match
+  else if (node.dynamicChild) {
+    return findMatch(node.dynamicChild, segments, index + 1, defaultProtected);
+  }
+  // Check for catch-all match
+  else if (node.catchAllChild) {
+    // Handle rest segments after catch-all (if any)
+    if (node.catchAllChild.node && node.catchAllChild.node.children.size > 0) {
+      // Try to find a matching rest segment for the remaining path
+      // We need to check all possible places where the catch-all might end
 
-      // For optional catch-all matching base paths (like /content)
-      if (currentNode.catchAllChild.isOptional && matchIndex >= segments.length) {
-        // For base path matching with optional catch-all, we've found a match
-        if (currentNode.catchAllChild.node.isProtected !== undefined) {
-          isProtected = currentNode.catchAllChild.node.isProtected;
-        }
-        return isProtected;
-      }
-
-      // Set protection status from catch-all node
-      if (currentNode.catchAllChild.node.isProtected !== undefined) {
-        isProtected = currentNode.catchAllChild.node.isProtected;
-      }
-
-      // Check for rest segments
-      if (currentNode.catchAllChild.restSegments && currentNode.catchAllChild.restSegments.size > 0) {
-        // Try to find a matching "rest segment" among remaining URL parts
-        let restMatched = false;
-        const remainingSegments = segments.slice(matchIndex);
-
-        // Try each remaining segment as a potential start of a rest path
-        for (let i = 0; i < remainingSegments.length; i++) {
-          const potentialRestStart = remainingSegments[i];
-          if (!potentialRestStart) continue;
-
-          if (currentNode.catchAllChild.restSegments.has(potentialRestStart)) {
-            // We have a potential rest segment match
-            const restPath = remainingSegments.slice(i);
-            const restStartNode = currentNode.catchAllChild.restSegments.get(potentialRestStart);
-            if (!restStartNode) continue;
-
-            let currentRestNode = restStartNode;
-
-            if (restPath.length === 1) {
-              // Single segment rest path, we have a match
-              if (currentRestNode.isProtected !== undefined) {
-                isProtected = currentRestNode.isProtected;
-              }
-              restMatched = true;
-              break;
-            }
-
-            // Multi-segment rest path, need to check further segments
-            let restMatchComplete = true;
-            for (let j = 1; j < restPath.length; j++) {
-              const nextSegment = restPath[j];
-              if (!nextSegment) continue;
-
-              if (currentRestNode.children.has(nextSegment)) {
-                const nextNode = currentRestNode.children.get(nextSegment);
-                if (nextNode) {
-                  currentRestNode = nextNode;
-                  if (j === restPath.length - 1 && currentRestNode.isProtected !== undefined) {
-                    isProtected = currentRestNode.isProtected;
-                  }
-                } else {
-                  restMatchComplete = false;
-                  break;
-                }
-              } else {
-                // Rest path doesn't match completely
-                restMatchComplete = false;
-                break;
-              }
-            }
-
-            if (restMatchComplete) {
-              restMatched = true;
-              break;
-            }
-          }
+      // First, let's try the most specific match: check if any segments after the catch-all
+      // match the remainder of our path
+      const tryRestSegmentMatch = (startIndex: number): boolean | null => {
+        // Make sure we have segments remaining
+        if (startIndex >= segments.length) {
+          return null;
         }
 
-        // If we matched a rest segment, we're done
-        if (restMatched) {
-          return isProtected;
+        const remainingSegment = segments[startIndex]!;
+
+        // If we have a match in the rest segments, follow that path
+        if (node.catchAllChild?.node.children?.has(remainingSegment)) {
+          const restNode = node.catchAllChild.node.children.get(remainingSegment)!;
+          return findMatch(restNode, segments, startIndex + 1, defaultProtected);
+        }
+
+        return null;
+      };
+
+      // Try each possible ending position for the catch-all
+      for (let i = index; i < segments.length; i++) {
+        const result = tryRestSegmentMatch(i);
+        if (result !== null) {
+          return result;
         }
       }
-
-      // If no rest segments matched, the catch-all consumes all remaining segments
-      return isProtected;
     }
 
-    // Update protection status
-    if (matched && currentNode.isProtected !== undefined) {
-      isProtected = currentNode.isProtected;
-    }
-
-    // If no match found, we're done
-    if (!matched) {
-      break;
-    }
+    // If no rest segments matched or if there are no rest segments,
+    // use the catch-all node's protection status
+    return node.catchAllChild.node.isProtected ?? defaultProtected;
   }
 
-  // We've either matched all segments or run out of matches
-  return isProtected;
+  // No match found, use default protection status
+  return defaultProtected;
 }
